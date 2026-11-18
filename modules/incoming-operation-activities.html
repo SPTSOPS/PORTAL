@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>SPTS - Incoming Operation Activities</title>
+  <meta name="theme-color" content="#0f172a">
+
+  <!-- Mobile Full-Screen Meta Tags -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-touch-callout: none !important;
+      -webkit-user-select: none !important;
+      -khtml-user-select: none !important;
+      -moz-user-select: none !important;
+      -ms-user-select: none !important;
+      user-select: none !important;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #0f172a;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #334155;
+      touch-action: none;
+    }
+
+    .app-viewport {
+      width: 100vw;
+      height: 100vh;
+      max-width: 412px;
+      max-height: 892px;
+      background-color: #ffffff;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    }
+
+    @media (min-width: 480px) and (orientation: portrait) {
+      .app-viewport {
+        border-radius: 28px;
+        height: 844px;
+      }
+    }
+
+    @media (orientation: landscape) {
+      .app-viewport {
+        max-width: 100vw !important;
+        max-height: 100vh !important;
+        border-radius: 0 !important;
+        width: 100vw;
+        height: 100vh;
+      }
+    }
+
+    .view-screen {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 14px;
+      padding-top: calc(env(safe-area-inset-top, 0px) + 20px);
+      padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
+      overflow-y: auto;
+      transform-origin: 0 0;
+      will-change: transform;
+      touch-action: pan-y;
+    }
+
+    /* Top Header */
+    .module-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      margin-top: 6px;
+      gap: 12px;
+    }
+
+    /* Prominent Home & Refresh Buttons */
+    .btn-header-icon {
+      width: 48px;
+      height: 48px;
+      background-color: #f1f5f9;
+      border: 2px solid #cbd5e1;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      cursor: pointer;
+      color: #002060;
+      user-select: none;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      flex-shrink: 0;
+    }
+
+    .btn-header-icon:active {
+      background-color: #e2e8f0;
+      transform: scale(0.94);
+    }
+
+    .module-title {
+      flex: 1;
+      text-align: center;
+      color: #000000;
+      font-size: 18px;
+      font-weight: 900;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      line-height: 1.2;
+    }
+
+    /* Section Headers */
+    .section-pill-title {
+      display: inline-block;
+      font-size: 20px;
+      font-weight: 900;
+      color: #ffffff;
+      padding: 8px 18px;
+      border-radius: 12px;
+      border: 2px solid #000000;
+      margin-bottom: 6px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+    }
+
+    /* Section Colors */
+    .bg-container { background-color: #08506b; }
+    .bg-sulphur { background-color: #e06622; }
+    .bg-spw { background-color: #00a651; }
+    .bg-transfer { background-color: #ffb700; color: #ffffff; }
+    .bg-housekeeping { background-color: #53626f; }
+
+    /* Tables Style */
+    .activity-section {
+      margin-bottom: 16px;
+    }
+
+    .table-container {
+      width: 100%;
+      overflow-x: auto;
+      border: 2px solid #000000;
+      border-radius: 4px;
+    }
+
+    .activity-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 10px;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .activity-table th {
+      color: #ffffff;
+      font-weight: 800;
+      padding: 6px 4px;
+      border-right: 1px solid #ffffff;
+      text-transform: uppercase;
+    }
+
+    .activity-table th:last-child {
+      border-right: none;
+    }
+
+    .activity-table td {
+      padding: 6px 4px;
+      border-bottom: 1px solid #e2e8f0;
+      border-right: 1px solid #e2e8f0;
+      font-weight: 700;
+      color: #000000;
+      background-color: #ffffff;
+    }
+
+    .activity-table td:last-child {
+      border-right: none;
+    }
+
+    .table-empty {
+      text-align: center;
+      padding: 12px;
+      color: #64748b;
+      font-size: 11px;
+      font-style: italic;
+      font-weight: 700;
+    }
+
+    /* Table Colors Header Specifics */
+    .th-container { background-color: #3b62b0; }
+    .th-sulphur { background-color: #f28038; }
+    .th-spw { background-color: #65b350; }
+    .th-transfer { background-color: #ffc220; color: #000000; }
+    .th-housekeeping { background-color: #8c9aa6; }
+
+    .action-row {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      margin-top: 10px;
+      margin-bottom: 10px;
+    }
+
+    .btn-back-round {
+      width: 44px;
+      height: 44px;
+      border: 2px solid #0078D4;
+      border-radius: 50%;
+      background: white;
+      color: #0078D4;
+      font-size: 20px;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    /* Floating Reset Zoom Badge */
+    .zoom-reset-pill {
+      position: absolute;
+      bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+      left: 16px;
+      background-color: rgba(15, 23, 42, 0.88);
+      color: #ffffff;
+      border: 1.5px solid #38bdf8;
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 800;
+      z-index: 50;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+      display: none;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .zoom-reset-pill.visible {
+      display: flex;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-viewport" id="appViewport">
+    <div class="view-screen" id="zoomStage">
+      
+      <!-- Top Nav Header -->
+      <div class="module-header">
+        <div class="btn-header-icon" onclick="goHome()" title="Go Home">🏠</div>
+        <div class="module-title">INCOMING ACTIVITIES</div>
+        <div class="btn-header-icon" onclick="fetchAllActivities(true)" title="Force Refresh Data">🔄</div>
+      </div>
+
+      <!-- Container Vessel Section -->
+      <div class="activity-section">
+        <div class="section-pill-title bg-container">Container Vessel</div>
+        <div class="table-container">
+          <table class="activity-table">
+            <thead>
+              <tr class="th-container">
+                <th>VESSEL NAME</th>
+                <th>VOYAGE</th>
+                <th>LOA</th>
+                <th>Side Alongside</th>
+                <th>ETB</th>
+                <th>ETC</th>
+              </tr>
+            </thead>
+            <tbody id="containerVesselBody">
+              <tr><td colspan="6" class="table-empty">Loading records...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Sulphur Vessel Section -->
+      <div class="activity-section">
+        <div class="section-pill-title bg-sulphur">Sulphur Vessel</div>
+        <div class="table-container">
+          <table class="activity-table">
+            <thead>
+              <tr class="th-sulphur">
+                <th>VESSEL NAME</th>
+                <th>VOYAGE</th>
+                <th>LOA</th>
+                <th>Side Alongside</th>
+                <th>ETB</th>
+                <th>ETC</th>
+              </tr>
+            </thead>
+            <tbody id="sulphurVesselBody">
+              <tr><td colspan="6" class="table-empty">Loading records...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- SPW Section -->
+      <div class="activity-section">
+        <div class="section-pill-title bg-spw">SPW</div>
+        <div class="table-container">
+          <table class="activity-table">
+            <thead>
+              <tr class="th-spw">
+                <th>VESSEL NAME</th>
+                <th>TOTAL</th>
+                <th>START</th>
+                <th>END</th>
+              </tr>
+            </thead>
+            <tbody id="spwBody">
+              <tr><td colspan="4" class="table-empty">Loading records...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Sulphur Transfer Section -->
+      <div class="activity-section">
+        <div class="section-pill-title bg-transfer">Sulphur Transfer</div>
+        <div class="table-container">
+          <table class="activity-table">
+            <thead>
+              <tr class="th-transfer">
+                <th>1ST PICKUP</th>
+                <th>TOTAL(1)</th>
+                <th>2ND PICKUP</th>
+                <th>TOTAL(2)</th>
+                <th>TT</th>
+              </tr>
+            </thead>
+            <tbody id="sulphurTransferBody">
+              <tr><td colspan="5" class="table-empty">Loading records...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Housekeeping Section -->
+      <div class="activity-section">
+        <div class="section-pill-title bg-housekeeping">Housekeeping</div>
+        <div class="table-container">
+          <table class="activity-table">
+            <thead>
+              <tr class="th-housekeeping">
+                <th>FROM</th>
+                <th>TO</th>
+                <th>TOTAL</th>
+                <th>START</th>
+                <th>END</th>
+              </tr>
+            </thead>
+            <tbody id="housekeepingBody">
+              <tr><td colspan="5" class="table-empty">Loading records...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Action Footer -->
+      <div class="action-row">
+        <div class="btn-back-round" onclick="goHome()">➔</div>
+      </div>
+
+    </div>
+
+    <!-- Reset Zoom Indicator -->
+    <div class="zoom-reset-pill" id="zoomResetPill" onclick="resetZoom()">
+      🔍 <span id="zoomLevelText">1.0x</span> · Reset
+    </div>
+  </div>
+
+  <script>
+    const ACTIVITIES_FLOW_URL = "https://default227dccee4218411f91e74dabddf0f5.f8.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/03/workflows/b9402ed6963f4ffb9e8a0cc515524257/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=dAeC5Re7BEQYm1twyCdaWCPGJTAtP79JaUqVY1sQGIk";
+
+    const CACHE_KEY = "spts_incoming_activities_cache";
+    const CACHE_TIME_KEY = "spts_incoming_activities_timestamp";
+    const CACHE_DURATION_MS = 5 * 60 * 1000;
+
+    function getPropValue(obj, keys, defaultValue = '-') {
+      if (!obj) return defaultValue;
+      for (const k of keys) {
+        if (obj[k] !== undefined && obj[k] !== null && String(obj[k]).trim() !== '') return obj[k];
+      }
+      return defaultValue;
+    }
+
+    // Direct String Parsing prevents UTC offset shifts (+8 hours issue fixed)
+    function formatDateTimeShort(dateVal) {
+      if (!dateVal || dateVal === '-') return '-';
+
+      const numVal = parseFloat(dateVal);
+
+      // Excel Serial Date Number
+      if (!isNaN(numVal) && isFinite(dateVal) && numVal > 30000 && numVal < 60000) {
+        const utcDays = Math.floor(numVal - 25569);
+        const utcValue = utcDays * 86400;
+        const dateInfo = new Date(utcValue * 1000);
+
+        const fractionalDay = numVal - Math.floor(numVal);
+        let totalSeconds = Math.round(86400 * fractionalDay);
+
+        const hours = Math.floor(totalSeconds / 3600);
+        totalSeconds %= 3600;
+        const minutes = Math.floor(totalSeconds / 60);
+
+        const dd = String(dateInfo.getUTCDate()).padStart(2, '0');
+        const mm = String(dateInfo.getUTCMonth() + 1).padStart(2, '0');
+        const hh = String(hours).padStart(2, '0');
+        const min = String(minutes).padStart(2, '0');
+
+        return `${dd}/${mm} ${hh}${min}`;
+      }
+
+      const str = String(dateVal).trim();
+
+      // Standard ISO / ISO-like strings (e.g. "2026-09-26T08:00:00" or "2026-09-26 08:00:00")
+      const isoMatches = str.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})(?:[T\s](\d{1,2}):(\d{1,2}))?/);
+      if (isoMatches) {
+        const mm = String(parseInt(isoMatches[2], 10)).padStart(2, '0');
+        const dd = String(parseInt(isoMatches[3], 10)).padStart(2, '0');
+        const hh = isoMatches[4] !== undefined ? String(parseInt(isoMatches[4], 10)).padStart(2, '0') : '00';
+        const min = isoMatches[5] !== undefined ? String(parseInt(isoMatches[5], 10)).padStart(2, '0') : '00';
+
+        return `${dd}/${mm} ${hh}${min}`;
+      }
+
+      // DD/MM/YYYY or DD-MM-YYYY strings (e.g. "26/09/2026 08:00")
+      const dmyMatches = str.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})(?:\s+(\d{1,2}):(\d{1,2}))?/);
+      if (dmyMatches) {
+        const dd = String(parseInt(dmyMatches[1], 10)).padStart(2, '0');
+        const mm = String(parseInt(dmyMatches[2], 10)).padStart(2, '0');
+        const hh = dmyMatches[4] !== undefined ? String(parseInt(dmyMatches[4], 10)).padStart(2, '0') : '00';
+        const min = dmyMatches[5] !== undefined ? String(parseInt(dmyMatches[5], 10)).padStart(2, '0') : '00';
+
+        return `${dd}/${mm} ${hh}${min}`;
+      }
+
+      return str;
+    }
+
+    function goHome() {
+      window.location.href = '../index.html';
+    }
+
+    function checkSession() {
+      const activeSession = sessionStorage.getItem('userSession');
+      if (!activeSession) {
+        window.location.href = '../index.html';
+      }
+    }
+
+    async function fetchAllActivities(forceRefresh = false) {
+      const cachedData = sessionStorage.getItem(CACHE_KEY);
+      const cachedTime = sessionStorage.getItem(CACHE_TIME_KEY);
+      const now = Date.now();
+
+      if (!forceRefresh && cachedData && cachedTime && (now - parseInt(cachedTime, 10) < CACHE_DURATION_MS)) {
+        renderAllTables(JSON.parse(cachedData));
+        return;
+      }
+
+      if (forceRefresh) {
+        setAllTablesLoading();
+      }
+
+      try {
+        const response = await fetch(ACTIVITIES_FLOW_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fetch: true })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          
+          sessionStorage.setItem(CACHE_KEY, JSON.stringify(data));
+          sessionStorage.setItem(CACHE_TIME_KEY, now.toString());
+
+          renderAllTables(data);
+        } else {
+          if (!cachedData) showErrorInAllTables("Failed to load records from server.");
+        }
+      } catch (err) {
+        console.error("Fetch All Activities Error:", err);
+        if (!cachedData) showErrorInAllTables("Network error loading activities.");
+      }
+    }
+
+    function setAllTablesLoading() {
+      ['containerVesselBody', 'sulphurVesselBody', 'spwBody', 'sulphurTransferBody', 'housekeepingBody'].forEach(id => {
+        const tbody = document.getElementById(id);
+        if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="table-empty">Syncing live data...</td></tr>`;
+      });
+    }
+
+    function renderAllTables(data) {
+      renderVesselTable('containerVesselBody', data.containerVessels, 6);
+      renderVesselTable('sulphurVesselBody', data.sulphurVessels, 6);
+      renderSPWTable('spwBody', data.spwActivities, 4);
+      renderTransferTable('sulphurTransferBody', data.sulphurTransfers, 5);
+      renderHousekeepingTable('housekeepingBody', data.housekeeping, 5);
+    }
+
+    function renderVesselTable(tbodyId, rows, colSpan) {
+      const tbody = document.getElementById(tbodyId);
+      if (!rows || !Array.isArray(rows) || rows.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="${colSpan}" class="table-empty">No records found.</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = '';
+      rows.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${getPropValue(row, ['VESSEL NAME', 'VESSEL_NAME', 'VesselName', 'Title'])}</td>
+          <td>${getPropValue(row, ['VOYAGE', 'Voyage', 'voyage'])}</td>
+          <td>${getPropValue(row, ['LOA', 'Loa', 'loa'])}</td>
+          <td>${getPropValue(row, ['Side Alongside', 'SIDE ALONGSIDE', 'SideAlongside'])}</td>
+          <td>${formatDateTimeShort(getPropValue(row, ['ETB', 'Etb', 'etb']))}</td>
+          <td>${formatDateTimeShort(getPropValue(row, ['ETC', 'Etc', 'etc']))}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderSPWTable(tbodyId, rows, colSpan) {
+      const tbody = document.getElementById(tbodyId);
+      if (!rows || !Array.isArray(rows) || rows.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="${colSpan}" class="table-empty">No records found.</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = '';
+      rows.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${getPropValue(row, ['VESSEL NAME', 'VESSEL_NAME', 'Title'])}</td>
+          <td>${getPropValue(row, ['TOTAL', 'Total', 'total'])}</td>
+          <td>${formatDateTimeShort(getPropValue(row, ['START', 'Start', 'start']))}</td>
+          <td>${formatDateTimeShort(getPropValue(row, ['END', 'End', 'end']))}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderTransferTable(tbodyId, rows, colSpan) {
+      const tbody = document.getElementById(tbodyId);
+      if (!rows || !Array.isArray(rows) || rows.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="${colSpan}" class="table-empty">No records found.</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = '';
+      rows.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${formatDateTimeShort(getPropValue(row, ['1ST PICKUP', 'FIRST_PICKUP', '1st Pickup']))}</td>
+          <td>${getPropValue(row, ['TOTAL(1)', 'TOTAL 1', 'Total1'])}</td>
+          <td>${formatDateTimeShort(getPropValue(row, ['2ND PICKUP', 'SECOND_PICKUP', '2nd Pickup']))}</td>
+          <td>${getPropValue(row, ['TOTAL(2)', 'TOTAL 2', 'Total2'])}</td>
+          <td>${getPropValue(row, ['TT', 'Tt', 'tt'])}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderHousekeepingTable(tbodyId, rows, colSpan) {
+      const tbody = document.getElementById(tbodyId);
+      if (!rows || !Array.isArray(rows) || rows.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="${colSpan}" class="table-empty">No records found.</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = '';
+      rows.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${getPropValue(row, ['FROM', 'From'])}</td>
+          <td>${getPropValue(row, ['TO', 'To'])}</td>
+          <td>${getPropValue(row, ['TOTAL', 'Total'])}</td>
+          <td>${formatDateTimeShort(getPropValue(row, ['START', 'Start']))}</td>
+          <td>${formatDateTimeShort(getPropValue(row, ['END', 'End']))}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function showErrorInAllTables(msg) {
+      ['containerVesselBody', 'sulphurVesselBody', 'spwBody', 'sulphurTransferBody', 'housekeepingBody'].forEach(id => {
+        const tbody = document.getElementById(id);
+        if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="table-empty">${msg}</td></tr>`;
+      });
+    }
+
+    /* =====================================================================
+       TWO-FINGER PINCH ZOOM & BOUNDED PAN ENGINE
+    ===================================================================== */
+    const viewportEl = document.getElementById('appViewport');
+    const stageEl = document.getElementById('zoomStage');
+    const resetPillEl = document.getElementById('zoomResetPill');
+    const zoomTextEl = document.getElementById('zoomLevelText');
+
+    let scale = 1;
+    let translateX = 0;
+    let translateY = 0;
+    const MIN_SCALE = 1;
+    const MAX_SCALE = 3.5;
+
+    let isPinching = false;
+    let isPanning = false;
+    let startDist = 0;
+    let startScale = 1;
+    let startMidX = 0;
+    let startMidY = 0;
+    let startTransX = 0;
+    let startTransY = 0;
+    let panStartX = 0;
+    let panStartY = 0;
+    let lastTapTime = 0;
+
+    function getTouchDistance(t1, t2) {
+      return Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+    }
+
+    function getTouchMidpoint(t1, t2, rect) {
+      return {
+        x: ((t1.clientX + t2.clientX) / 2) - rect.left,
+        y: ((t1.clientY + t2.clientY) / 2) - rect.top
+      };
+    }
+
+    function clampPosition() {
+      const vpW = viewportEl.clientWidth;
+      const vpH = viewportEl.clientHeight;
+      const contentH = Math.max(stageEl.scrollHeight, vpH);
+
+      const minX = vpW - (vpW * scale);
+      const maxX = 0;
+      const minY = vpH - (contentH * scale);
+      const maxY = 0;
+
+      translateX = Math.min(maxX, Math.max(minX, translateX));
+      translateY = Math.min(maxY, Math.max(minY, translateY));
+    }
+
+    function applyTransform() {
+      if (scale <= 1.01) {
+        scale = 1;
+        translateX = 0;
+        translateY = 0;
+        stageEl.style.transform = 'none';
+        stageEl.style.overflowY = 'auto';
+        stageEl.style.touchAction = 'pan-y';
+        resetPillEl.classList.remove('visible');
+      } else {
+        clampPosition();
+        stageEl.style.overflowY = 'visible';
+        stageEl.style.touchAction = 'none';
+        stageEl.style.transform = `translate3d(${translateX}px, ${translateY}px, 0) scale(${scale})`;
+        zoomTextEl.textContent = `${scale.toFixed(1)}x`;
+        resetPillEl.classList.add('visible');
+      }
+    }
+
+    function resetZoom() {
+      scale = 1;
+      translateX = 0;
+      translateY = 0;
+      stageEl.scrollTop = 0;
+      applyTransform();
+    }
+
+    viewportEl.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        isPinching = true;
+        isPanning = false;
+
+        // Account for existing scrollTop if zooming in from 1x
+        if (scale === 1 && stageEl.scrollTop > 0) {
+          translateY = -stageEl.scrollTop;
+          stageEl.scrollTop = 0;
+        }
+
+        const rect = viewportEl.getBoundingClientRect();
+        startDist = getTouchDistance(e.touches[0], e.touches[1]);
+        startScale = scale;
+        const mid = getTouchMidpoint(e.touches[0], e.touches[1], rect);
+        startMidX = mid.x;
+        startMidY = mid.y;
+        startTransX = translateX;
+        startTransY = translateY;
+      } else if (e.touches.length === 1) {
+        // Double-tap to reset when zoomed in
+        const now = Date.now();
+        if (now - lastTapTime < 280 && scale > 1) {
+          e.preventDefault();
+          resetZoom();
+          lastTapTime = 0;
+          return;
+        }
+        lastTapTime = now;
+
+        if (scale > 1) {
+          isPanning = true;
+          panStartX = e.touches[0].clientX - translateX;
+          panStartY = e.touches[0].clientY - translateY;
+        }
+      }
+    }, { passive: false });
+
+    viewportEl.addEventListener('touchmove', (e) => {
+      if (isPinching && e.touches.length === 2) {
+        e.preventDefault();
+        const rect = viewportEl.getBoundingClientRect();
+        const currentDist = getTouchDistance(e.touches[0], e.touches[1]);
+        const currentMid = getTouchMidpoint(e.touches[0], e.touches[1], rect);
+
+        const nextScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, startScale * (currentDist / startDist)));
+        const ratio = nextScale / startScale;
+
+        // Anchor focal point stationary between fingers
+        translateX = currentMid.x - (startMidX - startTransX) * ratio;
+        translateY = currentMid.y - (startMidY - startTransY) * ratio;
+        scale = nextScale;
+
+        applyTransform();
+      } else if (isPanning && e.touches.length === 1 && scale > 1) {
+        e.preventDefault();
+        translateX = e.touches[0].clientX - panStartX;
+        translateY = e.touches[0].clientY - panStartY;
+        applyTransform();
+      }
+    }, { passive: false });
+
+    viewportEl.addEventListener('touchend', (e) => {
+      if (e.touches.length < 2) {
+        isPinching = false;
+      }
+      if (e.touches.length === 0) {
+        isPanning = false;
+      } else if (e.touches.length === 1 && scale > 1) {
+        isPanning = true;
+        panStartX = e.touches[0].clientX - translateX;
+        panStartY = e.touches[0].clientY - translateY;
+      }
+    });
+
+    document.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    window.addEventListener('DOMContentLoaded', () => {
+      checkSession();
+      fetchAllActivities();
+    });
+  </script>
+
+  <!-- Global Full-Screen Trigger -->
+  <script src="../js/fullscreen-global.js"></script>
+</body>
+</html>

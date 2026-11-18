@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>SPTS - Historical Record</title>
+  <meta name="theme-color" content="#0f172a">
+
+  <!-- Mobile Full-Screen Meta Tags -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-touch-callout: none !important;
+      -webkit-user-select: none !important;
+      -khtml-user-select: none !important;
+      -moz-user-select: none !important;
+      -ms-user-select: none !important;
+      user-select: none !important;
+    }
+
+    input, textarea {
+      -webkit-user-select: text !important;
+      user-select: text !important;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      height: 100dvh;
+      overflow: hidden;
+      background-color: #0f172a;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #334155;
+    }
+
+    .app-viewport {
+      width: 100vw;
+      height: 100%;
+      height: 100dvh;
+      height: calc(var(--vh, 1vh) * 100);
+      max-width: 412px;
+      max-height: 892px;
+      background-color: #ffffff;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    }
+
+    @media (min-width: 480px) and (orientation: portrait) {
+      .app-viewport {
+        border-radius: 28px;
+        height: 844px;
+      }
+    }
+
+    /* Landscape Mode Screen Adjustment */
+    @media (orientation: landscape) {
+      .app-viewport {
+        max-width: 100vw !important;
+        max-height: 100vh !important;
+        border-radius: 0 !important;
+        width: 100vw;
+        height: 100vh;
+      }
+      .view-screen {
+        padding: 10px 16px !important;
+      }
+    }
+
+    .view-screen {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: calc(env(safe-area-inset-top, 0px) + 14px) 14px calc(env(safe-area-inset-bottom, 0px) + 14px) 14px;
+      overflow: hidden;
+    }
+
+    .hidden { display: none !important; }
+
+    /* Top Navigation */
+    .historical-top-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      flex-shrink: 0;
+    }
+
+    .btn-home-icon {
+      width: 38px;
+      height: 38px;
+      background-color: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      cursor: pointer;
+      color: #002060;
+    }
+
+    .historical-header-title {
+      flex: 1;
+      text-align: center;
+      color: #002060;
+      font-size: 18px;
+      font-weight: 800;
+      padding: 0 8px;
+    }
+
+    .top-right-app-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      object-fit: cover;
+      border: 1px solid #cbd5e1;
+    }
+
+    /* 4-Column Inputs Row */
+    .filter-grid-4col {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      margin-bottom: 8px;
+      flex-shrink: 0;
+    }
+
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .filter-label {
+      font-size: 11px;
+      font-weight: 800;
+      color: #0078D4;
+      margin-bottom: 3px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-align: center;
+    }
+
+    .filter-input {
+      width: 100%;
+      padding: 6px 4px;
+      font-size: 12px;
+      font-weight: 700;
+      border: 1.5px solid #0078D4;
+      border-radius: 6px;
+      outline: none;
+      color: #0f172a;
+      text-align: center;
+      background-color: #ffffff;
+    }
+
+    /* Dynamic Pillbox Grid Area (Hidden by default) */
+    .active-pillbox-area {
+      margin-bottom: 10px;
+      flex-shrink: 0;
+    }
+
+    .pill-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      max-height: 100px;
+      overflow-y: auto;
+      padding: 2px;
+    }
+
+    .pill-box {
+      background-color: #005a9e;
+      color: #ffffff;
+      font-size: 11px;
+      font-weight: 800;
+      text-align: center;
+      padding: 6px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      border: 1px solid #004578;
+      text-transform: uppercase;
+    }
+
+    .pill-box-orange {
+      background-color: #d97706 !important;
+      border-color: #b45309 !important;
+      color: #ffffff !important;
+    }
+
+    .pill-box.selected {
+      box-shadow: inset 0 0 0 2px #ffffff, 0 0 0 2px #0f172a;
+      transform: scale(1.02);
+    }
+
+    /* Logs Data Table Responsive Box - Stretched to fill remaining height */
+    .history-table-box {
+      flex: 1;
+      width: 100%;
+      min-height: 0;
+      overflow-x: auto;
+      overflow-y: auto;
+      border: 1.5px solid #0078D4;
+      border-radius: 8px;
+      background-color: #ffffff;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .history-table {
+      width: 100%;
+      min-width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .history-table th {
+      background-color: #3b62b0;
+      color: #ffffff;
+      font-weight: 800;
+      text-align: left;
+      padding: 8px 8px;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+
+    .history-table td {
+      padding: 7px 8px;
+      border-bottom: 1px solid #e2e8f0;
+      color: #1e293b;
+      font-weight: 600;
+    }
+
+    .history-table tr:nth-child(even) {
+      background-color: #f8fafc;
+    }
+
+    .table-empty {
+      text-align: center;
+      padding: 20px;
+      color: #64748b;
+      font-size: 12px;
+      font-style: italic;
+      font-weight: 700;
+    }
+
+    .action-row {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      margin-top: 10px;
+      flex-shrink: 0;
+    }
+
+    .btn-back-round {
+      width: 42px;
+      height: 42px;
+      border: 2px solid #0078D4;
+      border-radius: 50%;
+      background: white;
+      color: #0078D4;
+      font-size: 20px;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-viewport">
+    <div class="view-screen">
+      
+      <!-- Top Nav -->
+      <div class="historical-top-nav">
+        <div class="btn-home-icon" onclick="goHome()" title="Go to Home Page">🏠</div>
+        <div class="historical-header-title">HISTORICAL RECORD</div>
+        <img src="../icon-192.png" alt="App Icon" class="top-right-app-icon" onerror="this.style.display='none'" />
+      </div>
+
+      <!-- 4 Filter Input Boxes -->
+      <div id="filterGrid" class="filter-grid-4col">
+        <div class="filter-group">
+          <label class="filter-label">Year</label>
+          <input type="text" id="filterYear" class="filter-input" placeholder="Year" onfocus="setFilterMode('year')" oninput="applyFilters()" />
+        </div>
+        <div class="filter-group">
+          <label class="filter-label">Select Equipment</label>
+          <input type="text" id="filterEquipment" class="filter-input" placeholder="Equip" onfocus="setFilterMode('equipment')" oninput="applyFilters()" />
+        </div>
+        <div class="filter-group">
+          <label class="filter-label">Equipment Number</label>
+          <input type="text" id="filterEquipNum" class="filter-input" placeholder="Number" onfocus="setFilterMode('number')" oninput="applyFilters()" />
+        </div>
+        <div class="filter-group">
+          <label class="filter-label">Area of Issues</label>
+          <input type="text" id="filterArea" class="filter-input" placeholder="Area" onfocus="setFilterMode('area')" oninput="applyFilters()" />
+        </div>
+      </div>
+
+      <!-- Dynamic Pillbox Selection Area (Initially Hidden) -->
+      <div id="pillboxArea" class="active-pillbox-area hidden">
+        <div id="pillboxContainer" class="pill-grid"></div>
+      </div>
+
+      <!-- Historical Data Table Box -->
+      <div class="history-table-box">
+        <table class="history-table">
+          <thead>
+            <tr>
+              <th>NO.</th>
+              <th>DATE</th>
+              <th>COMPANY</th>
+              <th>ID</th>
+              <th>GROUP</th>
+              <th>NAME</th>
+              <th>EQUIPMENT</th>
+              <th>EQUIPNUM</th>
+              <th>AREA</th>
+              <th>ACTION</th>
+            </tr>
+          </thead>
+          <tbody id="historyTableBody">
+            <tr><td colspan="10" class="table-empty">Loading historical records...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Action Footer -->
+      <div class="action-row">
+        <div class="btn-back-round" onclick="goHome()">➔</div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    let rawInspectionLogs = [];
+    let filteredLogs = [];
+    let activeFilterMode = null;
+
+    const ORANGE_EQUIPMENT = ["TIPPER", "SHOVEL", "SHIPLOADER", "RECLAIMER", "STACKER", "CONVEYOR"];
+
+    const GET_LOGS_FLOW_URL = "https://default227dccee4218411f91e74dabddf0f5.f8.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/23/workflows/41d16fdee72843db94d61e4ec314841a/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=_qpB6B3yesT9KNhGtnsB6oRu4TFovZPbjrKnykFpXck";
+
+    // Local fallback records for testing & preview environments
+    const FALLBACK_LOGS = [
+      { DATE: "2026-11-11 08:10", COMPANY: "SPTS", ID: "T5218", GROUP: "OFFICE", NAME: "NOFIJUIDI BIN JUMRI", EQUIPMENT: "QC", EQUIPNUM: "QC01", AREA: "All is Good", ACTION: "Declared All OK" },
+      { DATE: "2026-11-11 08:07", COMPANY: "SPTS", ID: "T5218", GROUP: "OFFICE", NAME: "NOFIJUIDI BIN JUMRI", EQUIPMENT: "CONVEYOR", EQUIPNUM: "TP01", AREA: "Wear liner- missing / worn out / broken - Missing | Rubber skirts had issues - Missing", ACTION: "Reported with Defects" },
+      { DATE: "2026-11-11 08:05", COMPANY: "SPTS", ID: "T5218", GROUP: "OFFICE", NAME: "NOFIJUIDI BIN JUMRI", EQUIPMENT: "TIPPER", EQUIPNUM: "TT01", AREA: "All is Good", ACTION: "Declared All OK" },
+      { DATE: "2026-11-11 08:04", COMPANY: "SPTS", ID: "T5218", GROUP: "OFFICE", NAME: "NOFIJUIDI BIN JUMRI", EQUIPMENT: "PM", EQUIPNUM: "P01", AREA: "Aircond - Malfunction", ACTION: "Reported with Defects" },
+      { DATE: "2026-11-11 06:10", COMPANY: "SPTS", ID: "T5218", GROUP: "OFFICE", NAME: "NOFIJUIDI BIN JUMRI", EQUIPMENT: "PM", EQUIPNUM: "P05", AREA: "All is Good", ACTION: "Declared All OK" }
+    ];
+
+    function getPropValue(obj, keys, defaultValue = '-') {
+      if (!obj) return defaultValue;
+      for (const k of keys) {
+        if (obj[k] !== undefined && obj[k] !== null && String(obj[k]).trim() !== '') return obj[k];
+      }
+      return defaultValue;
+    }
+
+    function goHome() {
+      if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        window.location.href = '../index.html';
+      }
+    }
+
+    function checkSession() {
+      const activeSession = sessionStorage.getItem('userSession');
+      if (!activeSession) {
+        console.warn("No active session found, continuing in local mode.");
+      }
+    }
+
+    function initDefaultYear() {
+      const currentYear = new Date().getFullYear();
+      document.getElementById('filterYear').value = currentYear;
+    }
+
+    // Direct String & UTC Serial Parsing prevents +8 hours browser timezone offset shift
+    function formatHistoricalDate(rawDateStr) {
+      if (!rawDateStr || rawDateStr === '-') return '-';
+
+      const numVal = parseFloat(rawDateStr);
+
+      // 1. Excel Serial Date Number (e.g. 46339.4006944444)
+      if (!isNaN(numVal) && isFinite(rawDateStr) && numVal > 30000 && numVal < 60000) {
+        const utcDays = Math.floor(numVal - 25569);
+        const dateInfo = new Date(utcDays * 86400 * 1000);
+
+        const fractionalDay = numVal - Math.floor(numVal);
+        let totalSeconds = Math.round(86400 * fractionalDay);
+
+        const hours = Math.floor(totalSeconds / 3600);
+        totalSeconds %= 3600;
+        const minutes = Math.floor(totalSeconds / 60);
+
+        const yyyy = dateInfo.getUTCFullYear();
+        const mm = String(dateInfo.getUTCMonth() + 1).padStart(2, '0');
+        const dd = String(dateInfo.getUTCDate()).padStart(2, '0');
+        const hh = String(hours).padStart(2, '0');
+        const min = String(minutes).padStart(2, '0');
+
+        return `${yyyy}-${mm}-${dd} ${hh}${min}`;
+      }
+
+      const str = String(rawDateStr).trim();
+
+      // 2. ISO / ISO-like strings (e.g. "2026-11-13T09:37:00.000Z" or "2026-11-13 09:37:00")
+      const isoMatches = str.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})(?:[T\s](\d{1,2}):(\d{1,2}))?/);
+      if (isoMatches) {
+        const yyyy = isoMatches[1];
+        const mm = String(parseInt(isoMatches[2], 10)).padStart(2, '0');
+        const dd = String(parseInt(isoMatches[3], 10)).padStart(2, '0');
+        const hh = isoMatches[4] !== undefined ? String(parseInt(isoMatches[4], 10)).padStart(2, '0') : '00';
+        const min = isoMatches[5] !== undefined ? String(parseInt(isoMatches[5], 10)).padStart(2, '0') : '00';
+
+        return `${yyyy}-${mm}-${dd} ${hh}${min}`;
+      }
+
+      // 3. Slash/Dash Date strings (e.g. "11/13/26 9:37" or "13/11/2026 09:37")
+      const slashMatches = str.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})(?:\s+(\d{1,2}):(\d{1,2}))?/);
+      if (slashMatches) {
+        let p1 = parseInt(slashMatches[1], 10);
+        let p2 = parseInt(slashMatches[2], 10);
+        let y = parseInt(slashMatches[3], 10);
+        if (y < 100) y += 2000;
+
+        // Excel US format (MM/DD/YY) vs UK/MY format (DD/MM/YY)
+        let m = p1;
+        let d = p2;
+        if (p1 > 12) {
+          d = p1;
+          m = p2;
+        }
+
+        const mm = String(m).padStart(2, '0');
+        const dd = String(d).padStart(2, '0');
+        const hh = slashMatches[4] !== undefined ? String(parseInt(slashMatches[4], 10)).padStart(2, '0') : '00';
+        const min = slashMatches[5] !== undefined ? String(parseInt(slashMatches[5], 10)).padStart(2, '0') : '00';
+
+        return `${y}-${mm}-${dd} ${hh}${min}`;
+      }
+
+      return str;
+    }
+
+    async function fetchHistoricalLogs() {
+      const tbody = document.getElementById('historyTableBody');
+      tbody.innerHTML = `<tr><td colspan="10" class="table-empty">Fetching records...</td></tr>`;
+
+      try {
+        const response = await fetch(GET_LOGS_FLOW_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ FETCH_ALL: true })
+        });
+
+        if (response.ok) {
+          let resData = await response.json();
+          if (!Array.isArray(resData) && resData.value && Array.isArray(resData.value)) {
+            resData = resData.value;
+          }
+
+          rawInspectionLogs = Array.isArray(resData) && resData.length > 0 ? resData : FALLBACK_LOGS;
+        } else {
+          rawInspectionLogs = FALLBACK_LOGS;
+        }
+      } catch (e) {
+        console.warn("Using local fallback records:", e);
+        rawInspectionLogs = FALLBACK_LOGS;
+      } finally {
+        applyFilters();
+      }
+    }
+
+    function setFilterMode(mode) {
+      activeFilterMode = mode;
+      renderPillboxOptions();
+    }
+
+    // Extract concise, standardized item names without statuses, remarks, or trailing descriptions
+    function extractIndividualIssues(areaStr) {
+      if (!areaStr || areaStr === '-' || areaStr.trim().toLowerCase() === 'all is good') return [];
+      
+      return String(areaStr)
+        .split('|')
+        .map(segment => {
+          let clean = segment.trim();
+
+          const firstDashIdx = clean.indexOf('-');
+          if (firstDashIdx !== -1) {
+            clean = clean.substring(0, firstDashIdx).trim();
+          }
+
+          const firstCommaIdx = clean.indexOf(',');
+          if (firstCommaIdx !== -1) {
+            clean = clean.substring(0, firstCommaIdx).trim();
+          }
+
+          if (clean.includes(' / ')) {
+            clean = clean.split(' / ')[0].trim();
+          }
+
+          return clean;
+        })
+        .filter(Boolean);
+    }
+
+    function renderPillboxOptions() {
+      const areaContainer = document.getElementById('pillboxArea');
+      const container = document.getElementById('pillboxContainer');
+
+      if (!activeFilterMode) {
+        areaContainer.classList.add('hidden');
+        return;
+      }
+
+      areaContainer.classList.remove('hidden');
+      container.innerHTML = '';
+
+      const selectedEq = document.getElementById('filterEquipment').value.trim().toUpperCase();
+
+      if (activeFilterMode === 'year') {
+        const currentYear = new Date().getFullYear();
+        let years = [];
+        for (let y = 2026; y <= currentYear; y++) {
+          years.push(String(y));
+        }
+
+        const selectedYr = document.getElementById('filterYear').value.trim();
+        container.innerHTML = years.map(yr => 
+          `<div class="pill-box ${yr === selectedYr ? 'selected' : ''}" onclick="selectPill('year', '${yr}')">${yr}</div>`
+        ).join('');
+
+      } else if (activeFilterMode === 'equipment') {
+        const dataEqs = rawInspectionLogs.map(item => String(getPropValue(item, ['EQUIPMENT', 'equipment'], '')).toUpperCase()).filter(Boolean);
+        const defaultEqs = ["PM", "QC", "RTG", "ECH", "CRS", "FORKLIFT", "TRAILER", "TIPPER", "SHOVEL", "SHIPLOADER", "RECLAIMER", "STACKER", "CONVEYOR"];
+        const uniqueEqs = Array.from(new Set([...defaultEqs, ...dataEqs]));
+
+        container.innerHTML = uniqueEqs.map(eq => {
+          const isOrange = ORANGE_EQUIPMENT.includes(eq);
+          const isSelected = eq === selectedEq;
+          return `<div class="pill-box ${isOrange ? 'pill-box-orange' : ''} ${isSelected ? 'selected' : ''}" onclick="selectPill('equipment', '${eq}')">${eq}</div>`;
+        }).join('');
+
+      } else if (activeFilterMode === 'number') {
+        let poolLogs = rawInspectionLogs;
+        if (selectedEq) {
+          poolLogs = rawInspectionLogs.filter(row => 
+            String(getPropValue(row, ['EQUIPMENT', 'equipment'], '')).toUpperCase() === selectedEq
+          );
+        }
+
+        const uniqueNums = Array.from(new Set(poolLogs.map(item => String(getPropValue(item, ['EQUIPNUM', 'equipnum'], '')).toUpperCase()).filter(Boolean))).sort();
+        const selectedNum = document.getElementById('filterEquipNum').value.trim().toUpperCase();
+
+        if (uniqueNums.length === 0) {
+          container.innerHTML = `<div style="font-size: 11px; color: #64748b; font-style: italic;">No equipment numbers found</div>`;
+        } else {
+          container.innerHTML = uniqueNums.map(num => 
+            `<div class="pill-box ${num === selectedNum ? 'selected' : ''}" onclick="selectPill('number', '${num}')">${num}</div>`
+          ).join('');
+        }
+
+      } else if (activeFilterMode === 'area') {
+        let poolLogs = rawInspectionLogs;
+        if (selectedEq) {
+          poolLogs = rawInspectionLogs.filter(row => 
+            String(getPropValue(row, ['EQUIPMENT', 'equipment'], '')).toUpperCase() === selectedEq
+          );
+        }
+
+        const uniqueMap = new Map();
+        poolLogs.forEach(item => {
+          const areaRaw = getPropValue(item, ['AREA', 'area'], '');
+          const extracted = extractIndividualIssues(areaRaw);
+          extracted.forEach(issue => {
+            const key = issue.toUpperCase();
+            if (!uniqueMap.has(key)) {
+              uniqueMap.set(key, issue);
+            }
+          });
+        });
+
+        const uniqueAreas = Array.from(uniqueMap.values()).sort((a, b) => a.localeCompare(b));
+        const selectedArea = document.getElementById('filterArea').value.trim().toUpperCase();
+
+        if (uniqueAreas.length === 0) {
+          container.innerHTML = `<div style="font-size: 11px; color: #64748b; font-style: italic;">No area issues found</div>`;
+        } else {
+          container.innerHTML = uniqueAreas.map(area => 
+            `<div class="pill-box ${area.toUpperCase() === selectedArea ? 'selected' : ''}" onclick="selectPill('area', '${area.replace(/'/g, "\\'")}')">${area}</div>`
+          ).join('');
+        }
+      }
+    }
+
+    function selectPill(type, val) {
+      if (type === 'year') {
+        const field = document.getElementById('filterYear');
+        field.value = field.value === val ? '' : val;
+      } else if (type === 'equipment') {
+        const field = document.getElementById('filterEquipment');
+        const prev = field.value;
+        field.value = field.value === val ? '' : val;
+        if (prev !== field.value) {
+          document.getElementById('filterEquipNum').value = '';
+        }
+      } else if (type === 'number') {
+        const field = document.getElementById('filterEquipNum');
+        field.value = field.value === val ? '' : val;
+      } else if (type === 'area') {
+        const field = document.getElementById('filterArea');
+        field.value = field.value === val ? '' : val;
+      }
+      applyFilters();
+    }
+
+    function applyFilters() {
+      const yrVal = document.getElementById('filterYear').value.trim().toLowerCase();
+      const eqVal = document.getElementById('filterEquipment').value.trim().toLowerCase();
+      const numVal = document.getElementById('filterEquipNum').value.trim().toLowerCase();
+      const areaVal = document.getElementById('filterArea').value.trim().toLowerCase();
+
+      filteredLogs = rawInspectionLogs.filter(row => {
+        const formattedDate = formatHistoricalDate(getPropValue(row, ['DATE', 'date', 'Date'], ''));
+        const eqStr = String(getPropValue(row, ['EQUIPMENT', 'equipment'], '')).toLowerCase();
+        const numStr = String(getPropValue(row, ['EQUIPNUM', 'equipnum'], '')).toLowerCase();
+        const areaStr = String(getPropValue(row, ['AREA', 'area'], '')).toLowerCase();
+
+        const matchYr = !yrVal || formattedDate.toLowerCase().includes(yrVal);
+        const matchEq = !eqVal || eqStr === eqVal;
+        const matchNum = !numVal || numStr.includes(numVal);
+        const matchArea = !areaVal || areaStr.includes(areaVal);
+
+        return matchYr && matchEq && matchNum && matchArea;
+      });
+
+      // SORT DESCENDING using standardized YYYY-MM-DD HHmm format
+      filteredLogs.sort((a, b) => {
+        const dateA = formatHistoricalDate(getPropValue(a, ['DATE', 'date', 'Date'], ''));
+        const dateB = formatHistoricalDate(getPropValue(b, ['DATE', 'date', 'Date'], ''));
+        return dateB.localeCompare(dateA);
+      });
+
+      renderLogsTable(filteredLogs);
+      renderPillboxOptions();
+    }
+
+    function renderLogsTable(data) {
+      const tbody = document.getElementById('historyTableBody');
+      tbody.innerHTML = '';
+
+      if (!data || data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="10" class="table-empty">No matching inspection records found.</td></tr>`;
+        return;
+      }
+
+      data.forEach((row, index) => {
+        const tr = document.createElement('tr');
+        const rawDate = getPropValue(row, ['DATE', 'date', 'Date'], '-');
+        const formattedDate = formatHistoricalDate(rawDate);
+
+        tr.innerHTML = `
+          <td><strong>${index + 1}</strong></td>
+          <td>${formattedDate}</td>
+          <td>${getPropValue(row, ['COMPANY', 'company'], 'SPTS')}</td>
+          <td><strong>${getPropValue(row, ['COMPANY_ID', 'company_id', 'COMPANY ID', 'ID', 'id'], '-')}</strong></td>
+          <td>${getPropValue(row, ['GROUP', 'group'], '-')}</td>
+          <td>${getPropValue(row, ['NAME', 'Title', 'title', 'name'], '-')}</td>
+          <td><strong>${getPropValue(row, ['EQUIPMENT', 'equipment'], '-')}</strong></td>
+          <td><strong>${getPropValue(row, ['EQUIPNUM', 'equipnum'], '-')}</strong></td>
+          <td>${getPropValue(row, ['AREA', 'area'], '-')}</td>
+          <td>${getPropValue(row, ['ACTION', 'action', 'declaration'], '-')}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Dismiss Pillbox when clicking outside the filters or pillbox container
+    document.addEventListener('click', (e) => {
+      const filterGrid = document.getElementById('filterGrid');
+      const pillboxArea = document.getElementById('pillboxArea');
+
+      if (!filterGrid.contains(e.target) && !pillboxArea.contains(e.target)) {
+        activeFilterMode = null;
+        renderPillboxOptions();
+      }
+    });
+
+    document.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    window.addEventListener('DOMContentLoaded', () => {
+      checkSession();
+      initDefaultYear();
+      fetchHistoricalLogs();
+    });
+  </script>
+
+  <!-- Global Full-Screen Trigger -->
+  <script src="../js/fullscreen-global.js"></script>
+</body>
+</html>
