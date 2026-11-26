@@ -1,29 +1,518 @@
-async function startCamera() {
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    statusText.textContent = 'Camera API unavailable (requires HTTPS or iframe allow="camera"). Use "Choose File" below.';
-    captureBtn.disabled = true;
-    return;
-  }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Serial & Barcode Scanner - Operation Portal</title>
+  <meta name="theme-color" content="#0f172a">
 
-  // Try rear camera first, then fall back to any available camera (e.g., laptop webcam)
-  const constraintOptions = [
-    { video: { facingMode: { ideal: 'environment' } }, audio: false },
-    { video: true, audio: false }
-  ];
+  <!-- Barcode & OCR Libraries (CDN) -->
+  <script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
-  for (const constraints of constraintOptions) {
-    try {
-      stream = await navigator.mediaDevices.getUserMedia(constraints);
-      video.srcObject = stream;
-      await video.play();
-      statusText.textContent = 'Camera ready.';
-      captureBtn.disabled = false;
-      return;
-    } catch (err) {
-      console.warn('Camera attempt failed with constraints:', constraints, err.name);
-      statusText.textContent = `Camera error (${err.name}): ${err.message}. Use "Choose File" below.`;
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-touch-callout: none !important;
+      -webkit-user-select: none !important;
+      user-select: none !important;
     }
-  }
 
-  captureBtn.disabled = true;
-}
+    input, textarea, select {
+      -webkit-user-select: text !important;
+      user-select: text !important;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      height: 100dvh;
+      overflow: hidden;
+      background-color: #0f172a;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #334155;
+    }
+
+    .app-viewport {
+      width: 100vw;
+      height: 100%;
+      height: 100dvh;
+      max-width: 412px;
+      max-height: 892px;
+      background-color: #ffffff;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      position: relative;
+    }
+
+    @media (min-width: 480px) and (orientation: portrait) {
+      .app-viewport {
+        border-radius: 28px;
+        height: 844px;
+      }
+    }
+
+    /* TOP HEADER */
+    .top-bar {
+      background: #08506b;
+      color: #ffffff;
+      padding: calc(env(safe-area-inset-top, 0px) + 14px) 16px 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+
+    .btn-back {
+      background: rgba(255, 255, 255, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: #ffffff;
+      border-radius: 10px;
+      padding: 6px 12px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .top-bar-title {
+      font-size: 17px;
+      font-weight: 800;
+      letter-spacing: 0.3px;
+    }
+
+    .content-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* CAMERA VIEWFINDER */
+    .camera-box {
+      position: relative;
+      width: 100%;
+      height: 240px;
+      background: #0f172a;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 2px solid #08506b;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #cameraVideo {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .scan-guide {
+      position: absolute;
+      width: 82%;
+      height: 110px;
+      border: 2px dashed #38bdf8;
+      border-radius: 10px;
+      box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.45);
+      pointer-events: none;
+    }
+
+    .scan-guide-label {
+      position: absolute;
+      bottom: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15, 23, 42, 0.8);
+      color: #f8fafc;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 12px;
+      white-space: nowrap;
+    }
+
+    /* ACTION BUTTONS */
+    .btn-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .btn-action {
+      padding: 12px 10px;
+      border-radius: 10px;
+      border: none;
+      font-size: 13px;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: transform 0.1s ease;
+    }
+
+    .btn-action:active {
+      transform: scale(0.97);
+    }
+
+    .btn-primary {
+      background: #08506b;
+      color: #ffffff;
+    }
+
+    .btn-secondary {
+      background: #0078D4;
+      color: #ffffff;
+    }
+
+    .btn-submit {
+      width: 100%;
+      padding: 14px;
+      background: #16a34a;
+      color: #ffffff;
+      border: none;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 800;
+      cursor: pointer;
+      margin-top: 4px;
+    }
+
+    /* STATUS & FORM */
+    .status-pill {
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #0f172a;
+      text-align: center;
+    }
+
+    .form-card {
+      background: #f8fafc;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .field-label {
+      font-size: 12px;
+      font-weight: 800;
+      color: #1e293b;
+      margin-bottom: 4px;
+      display: block;
+      text-transform: uppercase;
+    }
+
+    .field-input {
+      width: 100%;
+      padding: 10px 12px;
+      font-size: 15px;
+      font-weight: 700;
+      border: 1.5px solid #94a3b8;
+      border-radius: 8px;
+      background: #ffffff;
+      color: #0f172a;
+    }
+
+    .field-input:focus {
+      outline: none;
+      border-color: #0078D4;
+    }
+
+    /* SCAN HISTORY LIST */
+    .history-title {
+      font-size: 13px;
+      font-weight: 900;
+      color: #08506b;
+      text-transform: uppercase;
+      margin-top: 4px;
+    }
+
+    .history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .history-item {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-left: 4px solid #08506b;
+      border-radius: 8px;
+      padding: 8px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+    }
+
+    .history-sn {
+      font-weight: 800;
+      color: #0f172a;
+    }
+
+    .history-meta {
+      font-size: 11px;
+      color: #64748b;
+    }
+
+    .btn-copy {
+      background: #e2e8f0;
+      border: none;
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-viewport">
+    <div class="top-bar">
+      <button class="btn-back" onclick="window.location.href='../index.html'">← Back</button>
+      <div class="top-bar-title">Serial & Barcode Scanner</div>
+    </div>
+
+    <div class="content-scroll">
+      <!-- Live Camera Preview -->
+      <div class="camera-box">
+        <video id="cameraVideo" autoplay playsinline muted></video>
+        <div class="scan-guide"></div>
+        <div class="scan-guide-label">Align Barcode or Label Text Inside Box</div>
+      </div>
+
+      <div id="scanStatus" class="status-pill">Ready — Point camera at barcode or tap Read Label Text</div>
+
+      <!-- Dual Mode Controls -->
+      <div class="btn-row">
+        <button type="button" class="btn-action btn-primary" onclick="startLiveBarcodeScan()">
+          📷 Auto-Scan Barcode
+        </button>
+        <button type="button" class="btn-action btn-secondary" onclick="captureAndReadText()">
+          🔍 Read Label Text (OCR)
+        </button>
+      </div>
+
+      <!-- Extracted Details Form -->
+      <div class="form-card">
+        <div>
+          <label class="field-label" for="assetTypeInput">Equipment / Item Type</label>
+          <select id="assetTypeInput" class="field-input">
+            <option value="Walkie Talkie Battery">Walkie Talkie Battery</option>
+            <option value="Walkie Talkie Unit">Walkie Talkie Unit</option>
+            <option value="Prime Mover / Trailer">Prime Mover / Trailer</option>
+            <option value="Other Equipment">Other Equipment</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="field-label" for="serialResultInput">Extracted Serial / Model No.</label>
+          <input type="text" id="serialResultInput" class="field-input" placeholder="e.g. NNTN8570B" />
+        </div>
+
+        <div>
+          <label class="field-label" for="remarksInput">Remarks / Condition (Optional)</label>
+          <input type="text" id="remarksInput" class="field-input" placeholder="e.g. Good condition / Issued to Shift A" />
+        </div>
+
+        <button type="button" class="btn-submit" onclick="saveScannedRecord()">
+          Save & Log Serial Number
+        </button>
+      </div>
+
+      <!-- Session Scan Log -->
+      <div class="history-title">Recent Scans (This Device)</div>
+      <div id="scanHistoryList" class="history-list"></div>
+    </div>
+  </div>
+
+  <canvas id="captureCanvas" style="display:none;"></canvas>
+
+  <script>
+    let videoStream = null;
+    let codeReader = null;
+    let isScanningBarcode = false;
+
+    function setStatus(msg) {
+      document.getElementById('scanStatus').innerText = msg;
+    }
+
+    async function initCamera() {
+      try {
+        if (videoStream) {
+          videoStream.getTracks().forEach(t => t.stop());
+        }
+        videoStream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          },
+          audio: false
+        });
+        const video = document.getElementById('cameraVideo');
+        video.srcObject = videoStream;
+        await video.play();
+        startLiveBarcodeScan();
+      } catch (err) {
+        setStatus('Camera permission denied or unavailable. Use HTTPS / mobile browser.');
+      }
+    }
+
+    function startLiveBarcodeScan() {
+      const video = document.getElementById('cameraVideo');
+      if (!videoStream) {
+        initCamera();
+        return;
+      }
+
+      if (isScanningBarcode) return;
+      isScanningBarcode = true;
+      setStatus('Scanning for barcode... Hold steady');
+
+      if (!codeReader && window.ZXing) {
+        codeReader = new ZXing.BrowserMultiFormatReader();
+      }
+
+      if (codeReader) {
+        codeReader.decodeFromVideoElement(video, (result, err) => {
+          if (result && result.text) {
+            document.getElementById('serialResultInput').value = result.text.trim();
+            setStatus(`Barcode Detected: ${result.text.trim()}`);
+            if (navigator.vibrate) navigator.vibrate(120);
+          }
+        });
+      }
+    }
+
+    async function captureAndReadText() {
+      const video = document.getElementById('cameraVideo');
+      const canvas = document.getElementById('captureCanvas');
+      if (!video.videoWidth) {
+        setStatus('Camera not ready yet.');
+        return;
+      }
+
+      setStatus('Capturing image & reading text (OCR)... Please wait');
+
+      // Crop to center guide box for faster, cleaner OCR
+      const vw = video.videoWidth;
+      const vh = video.videoHeight;
+      const cropW = Math.floor(vw * 0.85);
+      const cropH = Math.floor(vh * 0.45);
+      const cropX = Math.floor((vw - cropW) / 2);
+      const cropY = Math.floor((vh - cropH) / 2);
+
+      canvas.width = cropW;
+      canvas.height = cropH;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+
+      try {
+        const { data: { text } } = await Tesseract.recognize(canvas, 'eng');
+        const cleanedLines = text
+          .split('\n')
+          .map(line => line.replace(/[^A-Za-z0-9\-]/g, '').trim())
+          .filter(token => token.length >= 5);
+
+        // Prioritize alphanumeric part/serial codes (e.g. NNTN8570B)
+        const serialMatch = cleanedLines.find(t => /[A-Z]{2,}[0-9]{3,}[A-Z0-9]*/i.test(t)) || cleanedLines[0];
+
+        if (serialMatch) {
+          document.getElementById('serialResultInput').value = serialMatch.toUpperCase();
+          setStatus(`Text Extracted: ${serialMatch.toUpperCase()}`);
+          if (navigator.vibrate) navigator.vibrate([80, 50, 80]);
+        } else {
+          setStatus('No clear serial text found. Move closer & ensure good lighting.');
+        }
+      } catch (e) {
+        setStatus('OCR failed. Please retry or enter manually.');
+      }
+    }
+
+    function saveScannedRecord() {
+      const serial = document.getElementById('serialResultInput').value.trim();
+      const assetType = document.getElementById('assetTypeInput').value;
+      const remarks = document.getElementById('remarksInput').value.trim();
+
+      if (!serial) {
+        setStatus('Please scan or enter a serial number first.');
+        return;
+      }
+
+      const sessionRaw = sessionStorage.getItem('userSession');
+      const user = sessionRaw ? JSON.parse(sessionRaw) : {};
+      const scannedBy = user.NAME || user.Title || user.name || 'Portal User';
+
+      const record = {
+        serial,
+        assetType,
+        remarks: remarks || '-',
+        scannedBy,
+        timestamp: new Date().toLocaleString('en-MY', { hour12: false })
+      };
+
+      const existing = JSON.parse(localStorage.getItem('spts_scan_logs') || '[]');
+      existing.unshift(record);
+      localStorage.setItem('spts_scan_logs', JSON.stringify(existing.slice(0, 30)));
+
+      document.getElementById('serialResultInput').value = '';
+      document.getElementById('remarksInput').value = '';
+      setStatus(`Saved: ${serial}`);
+      renderHistory();
+    }
+
+    function copyText(val) {
+      navigator.clipboard.writeText(val);
+      setStatus(`Copied ${val} to clipboard`);
+    }
+
+    function renderHistory() {
+      const list = document.getElementById('scanHistoryList');
+      const logs = JSON.parse(localStorage.getItem('spts_scan_logs') || '[]');
+      if (logs.length === 0) {
+        list.innerHTML = `<div style="font-size:12px; color:#94a3b8; text-align:center; padding:10px;">No scans recorded yet.</div>`;
+        return;
+      }
+
+      list.innerHTML = logs.map(item => `
+        <div class="history-item">
+          <div>
+            <div class="history-sn">${item.serial}</div>
+            <div class="history-meta">${item.assetType} • ${item.timestamp}</div>
+          </div>
+          <button class="btn-copy" onclick="copyText('${item.serial}')">Copy</button>
+        </div>
+      `).join('');
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      renderHistory();
+      initCamera();
+    });
+
+    window.addEventListener('beforeunload', () => {
+      if (codeReader) codeReader.reset();
+      if (videoStream) videoStream.getTracks().forEach(t => t.stop());
+    });
+  </script>
+</body>
+</html>
