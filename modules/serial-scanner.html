@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Serial & Barcode Scanner - Operation Portal</title>
+  <title>Battery Scanner - Operation Portal</title>
   <meta name="theme-color" content="#0f172a">
 
   <!-- Barcode & OCR Libraries (CDN) -->
@@ -21,7 +21,7 @@
       user-select: none !important;
     }
 
-    input, textarea, select {
+    input, textarea {
       -webkit-user-select: text !important;
       user-select: text !important;
     }
@@ -100,8 +100,8 @@
     .camera-box {
       position: relative;
       width: 100%;
-      height: 240px;
-      background: #0f172a;
+      height: 250px;
+      background: #000000;
       border-radius: 14px;
       overflow: hidden;
       border: 2px solid #08506b;
@@ -114,12 +114,14 @@
       width: 100%;
       height: 100%;
       object-fit: cover;
+      display: block;
+      background: #000000;
     }
 
     .scan-guide {
       position: absolute;
-      width: 82%;
-      height: 110px;
+      width: 84%;
+      height: 115px;
       border: 2px dashed #38bdf8;
       border-radius: 10px;
       box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.45);
@@ -131,13 +133,14 @@
       bottom: 8px;
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(15, 23, 42, 0.8);
+      background: rgba(15, 23, 42, 0.85);
       color: #f8fafc;
       font-size: 11px;
       font-weight: 700;
       padding: 4px 10px;
       border-radius: 12px;
       white-space: nowrap;
+      pointer-events: none;
     }
 
     /* ACTION BUTTONS */
@@ -288,7 +291,7 @@
   <div class="app-viewport">
     <div class="top-bar">
       <button class="btn-back" onclick="window.location.href='../index.html'">← Back</button>
-      <div class="top-bar-title">Serial & Barcode Scanner</div>
+      <div class="top-bar-title">Battery Scanner</div>
     </div>
 
     <div class="content-scroll">
@@ -296,50 +299,40 @@
       <div class="camera-box">
         <video id="cameraVideo" autoplay playsinline muted></video>
         <div class="scan-guide"></div>
-        <div class="scan-guide-label">Align Barcode or Label Text Inside Box</div>
+        <div class="scan-guide-label">Align Battery Barcode or Label Text</div>
       </div>
 
-      <div id="scanStatus" class="status-pill">Ready — Point camera at barcode or tap Read Label Text</div>
+      <div id="scanStatus" class="status-pill">Starting camera...</div>
 
       <!-- Dual Mode Controls -->
       <div class="btn-row">
-        <button type="button" class="btn-action btn-primary" onclick="startLiveBarcodeScan()">
-          📷 Auto-Scan Barcode
+        <button type="button" class="btn-action btn-primary" onclick="restartCamera()">
+          🔄 Restart Camera
         </button>
         <button type="button" class="btn-action btn-secondary" onclick="captureAndReadText()">
           🔍 Read Label Text (OCR)
         </button>
       </div>
 
-      <!-- Extracted Details Form -->
+      <!-- Battery Details Form -->
       <div class="form-card">
         <div>
-          <label class="field-label" for="assetTypeInput">Equipment / Item Type</label>
-          <select id="assetTypeInput" class="field-input">
-            <option value="Walkie Talkie Battery">Walkie Talkie Battery</option>
-            <option value="Walkie Talkie Unit">Walkie Talkie Unit</option>
-            <option value="Prime Mover / Trailer">Prime Mover / Trailer</option>
-            <option value="Other Equipment">Other Equipment</option>
-          </select>
-        </div>
-
-        <div>
-          <label class="field-label" for="serialResultInput">Extracted Serial / Model No.</label>
-          <input type="text" id="serialResultInput" class="field-input" placeholder="e.g. NNTN8570B" />
+          <label class="field-label" for="serialResultInput">Battery Serial / Model No.</label>
+          <input type="text" id="serialResultInput" class="field-input" placeholder="e.g. NNTN8570B or 500002151395" />
         </div>
 
         <div>
           <label class="field-label" for="remarksInput">Remarks / Condition (Optional)</label>
-          <input type="text" id="remarksInput" class="field-input" placeholder="e.g. Good condition / Issued to Shift A" />
+          <input type="text" id="remarksInput" class="field-input" placeholder="e.g. Good / Spare / Assigned to Shift A" />
         </div>
 
         <button type="button" class="btn-submit" onclick="saveScannedRecord()">
-          Save & Log Serial Number
+          Save Battery Record
         </button>
       </div>
 
       <!-- Session Scan Log -->
-      <div class="history-title">Recent Scans (This Device)</div>
+      <div class="history-title">Recent Battery Scans</div>
       <div id="scanHistoryList" class="history-list"></div>
     </div>
   </div>
@@ -347,77 +340,89 @@
   <canvas id="captureCanvas" style="display:none;"></canvas>
 
   <script>
-    let videoStream = null;
     let codeReader = null;
-    let isScanningBarcode = false;
+    let activeStream = null;
 
     function setStatus(msg) {
       document.getElementById('scanStatus').innerText = msg;
     }
 
-    async function initCamera() {
+    async function startCameraAndBarcode() {
+      const video = document.getElementById('cameraVideo');
+      setStatus('Requesting rear camera...');
+
       try {
-        if (videoStream) {
-          videoStream.getTracks().forEach(t => t.stop());
+        // Stop any previous streams cleanly
+        if (codeReader) {
+          codeReader.reset();
         }
-        videoStream = await navigator.mediaDevices.getUserMedia({
+        if (activeStream) {
+          activeStream.getTracks().forEach(track => track.stop());
+          activeStream = null;
+        }
+
+        // Open rear camera directly with explicit constraints so video always renders
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
           video: {
             facingMode: { ideal: 'environment' },
             width: { ideal: 1280 },
             height: { ideal: 720 }
-          },
-          audio: false
+          }
         });
-        const video = document.getElementById('cameraVideo');
-        video.srcObject = videoStream;
-        await video.play();
-        startLiveBarcodeScan();
+
+        activeStream = stream;
+        video.setAttribute('autoplay', '');
+        video.setAttribute('muted', '');
+        video.setAttribute('playsinline', '');
+        video.srcObject = stream;
+
+        await new Promise((resolve) => {
+          video.onloadedmetadata = () => {
+            video.play().then(resolve).catch(resolve);
+          };
+        });
+
+        setStatus('Camera active — Auto-scanning barcode or tap Read Label Text');
+
+        // Start ZXing barcode decoding directly from the active stream
+        if (window.ZXing) {
+          codeReader = new ZXing.BrowserMultiFormatReader();
+          codeReader.decodeFromStream(stream, video, (result, err) => {
+            if (result && result.text) {
+              const code = result.text.trim();
+              document.getElementById('serialResultInput').value = code;
+              setStatus(`Barcode Scanned: ${code}`);
+              if (navigator.vibrate) navigator.vibrate(120);
+            }
+          });
+        }
       } catch (err) {
-        setStatus('Camera permission denied or unavailable. Use HTTPS / mobile browser.');
+        console.error('Camera start error:', err);
+        setStatus(`Camera error: ${err.name || 'Permission blocked'}. Tap Restart Camera.`);
       }
     }
 
-    function startLiveBarcodeScan() {
-      const video = document.getElementById('cameraVideo');
-      if (!videoStream) {
-        initCamera();
-        return;
-      }
-
-      if (isScanningBarcode) return;
-      isScanningBarcode = true;
-      setStatus('Scanning for barcode... Hold steady');
-
-      if (!codeReader && window.ZXing) {
-        codeReader = new ZXing.BrowserMultiFormatReader();
-      }
-
-      if (codeReader) {
-        codeReader.decodeFromVideoElement(video, (result, err) => {
-          if (result && result.text) {
-            document.getElementById('serialResultInput').value = result.text.trim();
-            setStatus(`Barcode Detected: ${result.text.trim()}`);
-            if (navigator.vibrate) navigator.vibrate(120);
-          }
-        });
-      }
+    function restartCamera() {
+      startCameraAndBarcode();
     }
 
     async function captureAndReadText() {
       const video = document.getElementById('cameraVideo');
       const canvas = document.getElementById('captureCanvas');
-      if (!video.videoWidth) {
-        setStatus('Camera not ready yet.');
+
+      if (!video.videoWidth || !video.videoHeight) {
+        setStatus('Camera view not ready yet. Tap Restart Camera.');
         return;
       }
 
-      setStatus('Capturing image & reading text (OCR)... Please wait');
+      setStatus('Reading battery label text (OCR)... Please hold steady');
 
-      // Crop to center guide box for faster, cleaner OCR
+      // Crop to the center dashed guide box
       const vw = video.videoWidth;
       const vh = video.videoHeight;
       const cropW = Math.floor(vw * 0.85);
-      const cropH = Math.floor(vh * 0.45);
+      const cropH = Math.floor(vh * 0.48);
       const cropX = Math.floor((vw - cropW) / 2);
       const cropY = Math.floor((vh - cropH) / 2);
 
@@ -428,33 +433,35 @@
 
       try {
         const { data: { text } } = await Tesseract.recognize(canvas, 'eng');
-        const cleanedLines = text
-          .split('\n')
-          .map(line => line.replace(/[^A-Za-z0-9\-]/g, '').trim())
-          .filter(token => token.length >= 5);
+        const tokens = text
+          .split(/[\s\n]+/)
+          .map(t => t.replace(/[^A-Za-z0-9\-]/g, '').trim())
+          .filter(t => t.length >= 6);
 
-        // Prioritize alphanumeric part/serial codes (e.g. NNTN8570B)
-        const serialMatch = cleanedLines.find(t => /[A-Z]{2,}[0-9]{3,}[A-Z0-9]*/i.test(t)) || cleanedLines[0];
+        // Match Motorola part numbers (e.g. NNTN8570B) or 10-14 digit serials (e.g. 500002151395)
+        const partOrSerial =
+          tokens.find(t => /^[A-Z]{2,}[0-9]{3,}[A-Z0-9]*$/i.test(t)) ||
+          tokens.find(t => /^[0-9]{8,16}$/.test(t)) ||
+          tokens[0];
 
-        if (serialMatch) {
-          document.getElementById('serialResultInput').value = serialMatch.toUpperCase();
-          setStatus(`Text Extracted: ${serialMatch.toUpperCase()}`);
+        if (partOrSerial) {
+          document.getElementById('serialResultInput').value = partOrSerial.toUpperCase();
+          setStatus(`Label Read: ${partOrSerial.toUpperCase()}`);
           if (navigator.vibrate) navigator.vibrate([80, 50, 80]);
         } else {
-          setStatus('No clear serial text found. Move closer & ensure good lighting.');
+          setStatus('No clear battery serial found. Move closer & tap Read Label Text again.');
         }
       } catch (e) {
-        setStatus('OCR failed. Please retry or enter manually.');
+        setStatus('Text scan failed. Retry or type serial manually.');
       }
     }
 
     function saveScannedRecord() {
       const serial = document.getElementById('serialResultInput').value.trim();
-      const assetType = document.getElementById('assetTypeInput').value;
       const remarks = document.getElementById('remarksInput').value.trim();
 
       if (!serial) {
-        setStatus('Please scan or enter a serial number first.');
+        setStatus('Please scan or enter a battery serial number first.');
         return;
       }
 
@@ -464,19 +471,18 @@
 
       const record = {
         serial,
-        assetType,
         remarks: remarks || '-',
         scannedBy,
         timestamp: new Date().toLocaleString('en-MY', { hour12: false })
       };
 
-      const existing = JSON.parse(localStorage.getItem('spts_scan_logs') || '[]');
+      const existing = JSON.parse(localStorage.getItem('spts_battery_scans') || '[]');
       existing.unshift(record);
-      localStorage.setItem('spts_scan_logs', JSON.stringify(existing.slice(0, 30)));
+      localStorage.setItem('spts_battery_scans', JSON.stringify(existing.slice(0, 30)));
 
       document.getElementById('serialResultInput').value = '';
       document.getElementById('remarksInput').value = '';
-      setStatus(`Saved: ${serial}`);
+      setStatus(`Saved Battery: ${serial}`);
       renderHistory();
     }
 
@@ -487,9 +493,9 @@
 
     function renderHistory() {
       const list = document.getElementById('scanHistoryList');
-      const logs = JSON.parse(localStorage.getItem('spts_scan_logs') || '[]');
+      const logs = JSON.parse(localStorage.getItem('spts_battery_scans') || '[]');
       if (logs.length === 0) {
-        list.innerHTML = `<div style="font-size:12px; color:#94a3b8; text-align:center; padding:10px;">No scans recorded yet.</div>`;
+        list.innerHTML = `<div style="font-size:12px; color:#94a3b8; text-align:center; padding:10px;">No battery scans recorded yet.</div>`;
         return;
       }
 
@@ -497,7 +503,7 @@
         <div class="history-item">
           <div>
             <div class="history-sn">${item.serial}</div>
-            <div class="history-meta">${item.assetType} • ${item.timestamp}</div>
+            <div class="history-meta">${item.remarks} • ${item.timestamp}</div>
           </div>
           <button class="btn-copy" onclick="copyText('${item.serial}')">Copy</button>
         </div>
@@ -506,12 +512,12 @@
 
     window.addEventListener('DOMContentLoaded', () => {
       renderHistory();
-      initCamera();
+      startCameraAndBarcode();
     });
 
     window.addEventListener('beforeunload', () => {
       if (codeReader) codeReader.reset();
-      if (videoStream) videoStream.getTracks().forEach(t => t.stop());
+      if (activeStream) activeStream.getTracks().forEach(t => t.stop());
     });
   </script>
 </body>
