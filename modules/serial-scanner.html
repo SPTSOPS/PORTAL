@@ -93,38 +93,35 @@
       padding: 16px;
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 12px;
     }
 
-    /* CAMERA VIEWFINDER */
+    /* CAMERA VIEWFINDER (CANVAS-BACKED SO PWA ALWAYS RENDERS) */
     .camera-box {
       position: relative;
       width: 100%;
       height: 250px;
-      background: #000000;
+      background: #0f172a;
       border-radius: 14px;
       overflow: hidden;
       border: 2px solid #08506b;
-      display: flex;
-      align-items: center;
-      justify-content: center;
     }
 
-    #cameraVideo {
+    #liveViewCanvas {
       width: 100%;
       height: 100%;
-      object-fit: cover;
       display: block;
-      background: #000000;
+      object-fit: cover;
     }
 
-    .scan-guide {
-      position: absolute;
-      width: 84%;
-      height: 115px;
-      border: 2px dashed #38bdf8;
-      border-radius: 10px;
-      box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.45);
+    /* Keep source video offscreen without display:none so frames keep decoding */
+    #cameraVideo {
+      position: fixed;
+      top: -9999px;
+      left: -9999px;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
       pointer-events: none;
     }
 
@@ -295,12 +292,14 @@
     </div>
 
     <div class="content-scroll">
-      <!-- Live Camera Preview -->
+      <!-- Visible Canvas Viewfinder -->
       <div class="camera-box">
-        <video id="cameraVideo" autoplay playsinline muted></video>
-        <div class="scan-guide"></div>
-        <div class="scan-guide-label">Align Battery Barcode or Label Text</div>
+        <canvas id="liveViewCanvas"></canvas>
+        <div class="scan-guide-label">Align Battery Barcode or Label Inside Box</div>
       </div>
+
+      <!-- Hidden Source Video Element -->
+      <video id="cameraVideo" autoplay playsinline muted></video>
 
       <div id="scanStatus" class="status-pill">Starting camera...</div>
 
@@ -342,9 +341,62 @@
   <script>
     let codeReader = null;
     let activeStream = null;
+    let renderLoopId = null;
 
     function setStatus(msg) {
       document.getElementById('scanStatus').innerText = msg;
+    }
+
+    function startPreviewRenderLoop() {
+      const video = document.getElementById('cameraVideo');
+      const canvas = document.getElementById('liveViewCanvas');
+      const ctx = canvas.getContext('2d');
+
+      if (renderLoopId) cancelAnimationFrame(renderLoopId);
+
+      function drawFrame() {
+        if (video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0) {
+          if (canvas.width !== canvas.clientWidth || canvas.height !== canvas.clientHeight) {
+            canvas.width = canvas.clientWidth || 380;
+            canvas.height = canvas.clientHeight || 250;
+          }
+
+          const cw = canvas.width;
+          const ch = canvas.height;
+          const vw = video.videoWidth;
+          const vh = video.videoHeight;
+
+          // Center-crop cover fit
+          const scale = Math.max(cw / vw, ch / vh);
+          const sw = cw / scale;
+          const sh = ch / scale;
+          const sx = (vw - sw) / 2;
+          const sy = (vh - sh) / 2;
+
+          ctx.drawImage(video, sx, sy, sw, sh, 0, 0, cw, ch);
+
+          // Draw translucent outer mask & target guide box directly on canvas
+          const boxW = Math.floor(cw * 0.84);
+          const boxH = Math.floor(ch * 0.48);
+          const boxX = Math.floor((cw - boxW) / 2);
+          const boxY = Math.floor((ch - boxH) / 2);
+
+          ctx.fillStyle = 'rgba(15, 23, 42, 0.42)';
+          ctx.fillRect(0, 0, cw, boxY);
+          ctx.fillRect(0, boxY + boxH, cw, ch - (boxY + boxH));
+          ctx.fillRect(0, boxY, boxX, boxH);
+          ctx.fillRect(boxX + boxW, boxY, cw - (boxX + boxW), boxH);
+
+          ctx.strokeStyle = '#38bdf8';
+          ctx.lineWidth = 2.5;
+          ctx.setLineDash([8, 5]);
+          ctx.strokeRect(boxX, boxY, boxW, boxH);
+          ctx.setLineDash([]);
+        }
+        renderLoopId = requestAnimationFrame(drawFrame);
+      }
+
+      drawFrame();
     }
 
     async function startCameraAndBarcode() {
@@ -352,16 +404,13 @@
       setStatus('Requesting rear camera...');
 
       try {
-        // Stop any previous streams cleanly
-        if (codeReader) {
-          codeReader.reset();
-        }
+        if (renderLoopId) cancelAnimationFrame(renderLoopId);
+        if (codeReader) codeReader.reset();
         if (activeStream) {
           activeStream.getTracks().forEach(track => track.stop());
           activeStream = null;
         }
 
-        // Open rear camera directly with explicit constraints so video always renders
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: false,
           video: {
@@ -372,9 +421,6 @@
         });
 
         activeStream = stream;
-        video.setAttribute('autoplay', '');
-        video.setAttribute('muted', '');
-        video.setAttribute('playsinline', '');
         video.srcObject = stream;
 
         await new Promise((resolve) => {
@@ -383,9 +429,9 @@
           };
         });
 
+        startPreviewRenderLoop();
         setStatus('Camera active — Auto-scanning barcode or tap Read Label Text');
 
-        // Start ZXing barcode decoding directly from the active stream
         if (window.ZXing) {
           codeReader = new ZXing.BrowserMultiFormatReader();
           codeReader.decodeFromStream(stream, video, (result, err) => {
@@ -418,7 +464,6 @@
 
       setStatus('Reading battery label text (OCR)... Please hold steady');
 
-      // Crop to the center dashed guide box
       const vw = video.videoWidth;
       const vh = video.videoHeight;
       const cropW = Math.floor(vw * 0.85);
@@ -438,7 +483,6 @@
           .map(t => t.replace(/[^A-Za-z0-9\-]/g, '').trim())
           .filter(t => t.length >= 6);
 
-        // Match Motorola part numbers (e.g. NNTN8570B) or 10-14 digit serials (e.g. 500002151395)
         const partOrSerial =
           tokens.find(t => /^[A-Z]{2,}[0-9]{3,}[A-Z0-9]*$/i.test(t)) ||
           tokens.find(t => /^[0-9]{8,16}$/.test(t)) ||
@@ -516,6 +560,7 @@
     });
 
     window.addEventListener('beforeunload', () => {
+      if (renderLoopId) cancelAnimationFrame(renderLoopId);
       if (codeReader) codeReader.reset();
       if (activeStream) activeStream.getTracks().forEach(t => t.stop());
     });
