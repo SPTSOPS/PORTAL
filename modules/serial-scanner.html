@@ -1,569 +1,492 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Battery Scanner - Operation Portal</title>
-  <meta name="theme-color" content="#0f172a">
-
-  <!-- Barcode & OCR Libraries (CDN) -->
-  <script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Battery Scanner | SPTS Operation Portal</title>
+  <script src="https://unpkg.com/@zxing/library@0.20.0"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-
   <style>
-    * {
-      box-sizing: border-box;
+    :root {
+      --header-bg: #0b4a5a;
+      --primary: #0b4a5a;
+      --blue-btn: #1677c5;
+      --green-btn: #219653;
+      --bg: #f1f5f9;
+      --card: #ffffff;
+      --text: #1e293b;
+      --muted: #64748b;
+      --border: #cbd5e1;
+    }
+    * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
+    body {
       margin: 0;
-      padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      -webkit-touch-callout: none !important;
-      -webkit-user-select: none !important;
-      user-select: none !important;
+      background: var(--bg);
+      color: var(--text);
     }
-
-    input, textarea {
-      -webkit-user-select: text !important;
-      user-select: text !important;
-    }
-
-    html, body {
-      width: 100%;
-      height: 100%;
-      height: 100dvh;
-      overflow: hidden;
-      background-color: #0f172a;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      color: #334155;
-    }
-
-    .app-viewport {
-      width: 100vw;
-      height: 100%;
-      height: 100dvh;
-      max-width: 412px;
-      max-height: 892px;
-      background-color: #ffffff;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-      position: relative;
-    }
-
-    @media (min-width: 480px) and (orientation: portrait) {
-      .app-viewport {
-        border-radius: 28px;
-        height: 844px;
-      }
-    }
-
-    /* TOP HEADER */
+    /* Top Header matching your portal */
     .top-bar {
-      background: #08506b;
-      color: #ffffff;
-      padding: calc(env(safe-area-inset-top, 0px) + 14px) 16px 14px 16px;
+      background: var(--header-bg);
+      color: #fff;
+      padding: 14px 16px;
       display: flex;
       align-items: center;
-      gap: 12px;
-      flex-shrink: 0;
+      gap: 14px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
     }
-
-    .btn-back {
-      background: rgba(255, 255, 255, 0.15);
-      border: 1px solid rgba(255, 255, 255, 0.3);
-      color: #ffffff;
-      border-radius: 10px;
-      padding: 6px 12px;
-      font-size: 14px;
-      font-weight: 700;
+    .back-btn {
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      border-radius: 8px;
+      padding: 7px 14px;
+      font-size: 0.9rem;
+      font-weight: 600;
       cursor: pointer;
     }
-
-    .top-bar-title {
-      font-size: 17px;
-      font-weight: 800;
-      letter-spacing: 0.3px;
+    .top-bar h1 {
+      margin: 0;
+      font-size: 1.2rem;
+      font-weight: 700;
+    }
+    .main-wrap {
+      max-width: 520px;
+      margin: 0 auto;
+      padding: 14px;
     }
 
-    .content-scroll {
-      flex: 1;
-      overflow-y: auto;
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    /* CAMERA VIEWFINDER (CANVAS-BACKED SO PWA ALWAYS RENDERS) */
+    /* Large Continuous Camera Viewfinder */
     .camera-box {
       position: relative;
       width: 100%;
-      height: 250px;
+      height: 360px; /* Explicit height prevents collapsing */
       background: #0f172a;
+      border: 3px solid var(--header-bg);
       border-radius: 14px;
       overflow: hidden;
-      border: 2px solid #08506b;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
-
-    #liveViewCanvas {
+    video, canvas {
       width: 100%;
       height: 100%;
-      display: block;
       object-fit: cover;
+      display: block;
     }
-
-    /* Keep source video offscreen without display:none so frames keep decoding */
-    #cameraVideo {
-      position: fixed;
-      top: -9999px;
-      left: -9999px;
-      width: 1px;
-      height: 1px;
-      opacity: 0;
+    /* Dimmed outer mask + crisp scan border */
+    .guide-frame {
+      position: absolute;
+      top: 22%;
+      left: 8%;
+      width: 84%;
+      height: 56%;
+      border: 2.5px solid #00ff88;
+      border-radius: 10px;
+      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
       pointer-events: none;
     }
-
-    .scan-guide-label {
+    .guide-label {
       position: absolute;
-      bottom: 8px;
+      top: -26px;
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(15, 23, 42, 0.85);
-      color: #f8fafc;
-      font-size: 11px;
+      background: rgba(0, 0, 0, 0.75);
+      color: #00ff88;
+      font-size: 0.75rem;
       font-weight: 700;
-      padding: 4px 10px;
-      border-radius: 12px;
+      padding: 3px 10px;
+      border-radius: 999px;
       white-space: nowrap;
-      pointer-events: none;
+      letter-spacing: 0.3px;
     }
 
-    /* ACTION BUTTONS */
-    .btn-row {
+    /* Status Pill */
+    .status-pill {
+      margin-top: 12px;
+      padding: 11px 14px;
+      background: #e2e8f0;
+      border-radius: 10px;
+      text-align: center;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #1e293b;
+    }
+    .status-pill.error {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+
+    /* Action Buttons */
+    .action-row {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 10px;
+      margin-top: 12px;
     }
-
-    .btn-action {
-      padding: 12px 10px;
-      border-radius: 10px;
+    .btn {
+      padding: 13px 10px;
       border: none;
-      font-size: 13px;
-      font-weight: 800;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #fff;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 6px;
-      transition: transform 0.1s ease;
-    }
-
-    .btn-action:active {
-      transform: scale(0.97);
-    }
-
-    .btn-primary {
-      background: #08506b;
-      color: #ffffff;
-    }
-
-    .btn-secondary {
-      background: #0078D4;
-      color: #ffffff;
-    }
-
-    .btn-submit {
-      width: 100%;
-      padding: 14px;
-      background: #16a34a;
-      color: #ffffff;
-      border: none;
-      border-radius: 12px;
-      font-size: 15px;
-      font-weight: 800;
-      cursor: pointer;
-      margin-top: 4px;
-    }
-
-    /* STATUS & FORM */
-    .status-pill {
-      background: #f1f5f9;
-      border: 1px solid #cbd5e1;
-      border-radius: 8px;
-      padding: 8px 12px;
-      font-size: 12px;
-      font-weight: 700;
-      color: #0f172a;
       text-align: center;
     }
+    .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+    .btn-teal { background: var(--primary); }
+    .btn-blue { background: var(--blue-btn); }
+    .btn-green { background: var(--green-btn); width: 100%; font-size: 1rem; padding: 14px; }
+    .btn-full { grid-column: span 2; }
 
-    .form-card {
-      background: #f8fafc;
-      border: 1.5px solid #e2e8f0;
+    /* Form Card */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
       border-radius: 14px;
-      padding: 14px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
+      padding: 16px;
+      margin-top: 14px;
     }
-
-    .field-label {
-      font-size: 12px;
+    .field { margin-bottom: 14px; }
+    .field label {
+      display: block;
+      font-size: 0.8rem;
       font-weight: 800;
       color: #1e293b;
-      margin-bottom: 4px;
-      display: block;
       text-transform: uppercase;
+      margin-bottom: 6px;
     }
-
-    .field-input {
+    .field input {
       width: 100%;
-      padding: 10px 12px;
-      font-size: 15px;
-      font-weight: 700;
+      padding: 12px;
+      font-size: 1.05rem;
+      font-weight: 600;
       border: 1.5px solid #94a3b8;
-      border-radius: 8px;
-      background: #ffffff;
+      border-radius: 10px;
       color: #0f172a;
     }
+    .field input::placeholder { color: #94a3b8; font-weight: 500; }
 
-    .field-input:focus {
-      outline: none;
-      border-color: #0078D4;
-    }
-
-    /* SCAN HISTORY LIST */
+    /* Recent Scans */
     .history-title {
-      font-size: 13px;
-      font-weight: 900;
-      color: #08506b;
+      margin: 18px 0 10px 0;
+      font-size: 0.9rem;
+      font-weight: 800;
+      color: var(--primary);
       text-transform: uppercase;
-      margin-top: 4px;
     }
-
-    .history-list {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
+    .empty-msg {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.9rem;
+      padding: 12px 0;
     }
-
     .history-item {
-      background: #ffffff;
-      border: 1px solid #cbd5e1;
-      border-left: 4px solid #08506b;
-      border-radius: 8px;
-      padding: 8px 12px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 13px;
-    }
-
-    .history-sn {
-      font-weight: 800;
-      color: #0f172a;
-    }
-
-    .history-meta {
-      font-size: 11px;
-      color: #64748b;
-    }
-
-    .btn-copy {
-      background: #e2e8f0;
-      border: none;
-      border-radius: 6px;
-      padding: 4px 8px;
-      font-size: 11px;
-      font-weight: 700;
-      cursor: pointer;
+      font-size: 0.88rem;
     }
   </style>
 </head>
 <body>
 
-  <div class="app-viewport">
-    <div class="top-bar">
-      <button class="btn-back" onclick="window.location.href='../index.html'">← Back</button>
-      <div class="top-bar-title">Battery Scanner</div>
-    </div>
+<div class="top-bar">
+  <button class="back-btn" onclick="goBack()">← Back</button>
+  <h1>Battery Scanner</h1>
+</div>
 
-    <div class="content-scroll">
-      <!-- Visible Canvas Viewfinder -->
-      <div class="camera-box">
-        <canvas id="liveViewCanvas"></canvas>
-        <div class="scan-guide-label">Align Battery Barcode or Label Inside Box</div>
-      </div>
-
-      <!-- Hidden Source Video Element -->
-      <video id="cameraVideo" autoplay playsinline muted></video>
-
-      <div id="scanStatus" class="status-pill">Starting camera...</div>
-
-      <!-- Dual Mode Controls -->
-      <div class="btn-row">
-        <button type="button" class="btn-action btn-primary" onclick="restartCamera()">
-          🔄 Restart Camera
-        </button>
-        <button type="button" class="btn-action btn-secondary" onclick="captureAndReadText()">
-          🔍 Read Label Text (OCR)
-        </button>
-      </div>
-
-      <!-- Battery Details Form -->
-      <div class="form-card">
-        <div>
-          <label class="field-label" for="serialResultInput">Battery Serial / Model No.</label>
-          <input type="text" id="serialResultInput" class="field-input" placeholder="e.g. NNTN8570B or 500002151395" />
-        </div>
-
-        <div>
-          <label class="field-label" for="remarksInput">Remarks / Condition (Optional)</label>
-          <input type="text" id="remarksInput" class="field-input" placeholder="e.g. Good / Spare / Assigned to Shift A" />
-        </div>
-
-        <button type="button" class="btn-submit" onclick="saveScannedRecord()">
-          Save Battery Record
-        </button>
-      </div>
-
-      <!-- Session Scan Log -->
-      <div class="history-title">Recent Battery Scans</div>
-      <div id="scanHistoryList" class="history-list"></div>
+<div class="main-wrap">
+  <!-- Large Live Camera Viewfinder -->
+  <div class="camera-box" id="cameraBox">
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="canvas" style="display:none;"></canvas>
+    <div class="guide-frame" id="guideFrame">
+      <div class="guide-label">ALIGN BATTERY LABEL HERE</div>
     </div>
   </div>
 
-  <canvas id="captureCanvas" style="display:none;"></canvas>
+  <div class="status-pill" id="statusPill">Starting rear camera...</div>
 
-  <script>
-    let codeReader = null;
-    let activeStream = null;
-    let renderLoopId = null;
+  <!-- Snap & Restart Controls -->
+  <div class="action-row">
+    <button class="btn btn-teal" id="restartBtn" type="button">🔄 Restart Camera</button>
+    <button class="btn btn-blue" id="snapBtn" type="button">📸 Snap & Read Label</button>
+    <label for="nativeCamInput" class="btn btn-teal btn-full" style="background:#334155; font-size:0.85rem; padding:10px;">
+      📁 Or Use Phone Native Camera / Upload
+    </label>
+    <input type="file" id="nativeCamInput" accept="image/*" capture="environment" style="display:none;" />
+  </div>
 
-    function setStatus(msg) {
-      document.getElementById('scanStatus').innerText = msg;
+  <!-- Input Card -->
+  <div class="card">
+    <div class="field">
+      <label>Battery Serial / Model No.</label>
+      <input type="text" id="serialInput" placeholder="e.g. NNTN8570B or 500002151395" />
+    </div>
+    <div class="field">
+      <label>Remarks / Condition (Optional)</label>
+      <input type="text" id="remarksInput" placeholder="e.g. Good / Spare / Assigned to..." />
+    </div>
+    <button class="btn btn-green" id="saveBtn" type="button">Save Battery Record</button>
+  </div>
+
+  <div class="history-title">Recent Battery Scans</div>
+  <div id="historyContainer">
+    <div class="empty-msg">No battery scans recorded yet.</div>
+  </div>
+</div>
+
+<script>
+  const video = document.getElementById('video');
+  const canvas = document.getElementById('canvas');
+  const guideFrame = document.getElementById('guideFrame');
+  const statusPill = document.getElementById('statusPill');
+  const restartBtn = document.getElementById('restartBtn');
+  const snapBtn = document.getElementById('snapBtn');
+  const nativeCamInput = document.getElementById('nativeCamInput');
+  const serialInput = document.getElementById('serialInput');
+  const remarksInput = document.getElementById('remarksInput');
+  const saveBtn = document.getElementById('saveBtn');
+  const historyContainer = document.getElementById('historyContainer');
+
+  let activeStream = null;
+  let isFrozen = false;
+
+  function goBack() {
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({ action: 'closeModule' }, '*');
+    } else {
+      window.location.href = '../index.html';
+    }
+  }
+
+  function setStatus(text, isError = false) {
+    statusPill.textContent = text;
+    statusPill.className = isError ? 'status-pill error' : 'status-pill';
+  }
+
+  // 1. Keep Live Camera Running Continuously
+  async function startLiveCamera() {
+    stopStream();
+    isFrozen = false;
+    canvas.style.display = 'none';
+    video.style.display = 'block';
+    guideFrame.style.display = 'block';
+    snapBtn.textContent = '📸 Snap & Read Label';
+    snapBtn.disabled = false;
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setStatus('Live camera blocked (use HTTPS or native camera button below).', true);
+      return;
     }
 
-    function startPreviewRenderLoop() {
-      const video = document.getElementById('cameraVideo');
-      const canvas = document.getElementById('liveViewCanvas');
-      const ctx = canvas.getContext('2d');
+    const attempts = [
+      { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 960 } }, audio: false },
+      { video: { facingMode: 'environment' }, audio: false },
+      { video: true, audio: false }
+    ];
 
-      if (renderLoopId) cancelAnimationFrame(renderLoopId);
-
-      function drawFrame() {
-        if (video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0) {
-          if (canvas.width !== canvas.clientWidth || canvas.height !== canvas.clientHeight) {
-            canvas.width = canvas.clientWidth || 380;
-            canvas.height = canvas.clientHeight || 250;
-          }
-
-          const cw = canvas.width;
-          const ch = canvas.height;
-          const vw = video.videoWidth;
-          const vh = video.videoHeight;
-
-          // Center-crop cover fit
-          const scale = Math.max(cw / vw, ch / vh);
-          const sw = cw / scale;
-          const sh = ch / scale;
-          const sx = (vw - sw) / 2;
-          const sy = (vh - sh) / 2;
-
-          ctx.drawImage(video, sx, sy, sw, sh, 0, 0, cw, ch);
-
-          // Draw translucent outer mask & target guide box directly on canvas
-          const boxW = Math.floor(cw * 0.84);
-          const boxH = Math.floor(ch * 0.48);
-          const boxX = Math.floor((cw - boxW) / 2);
-          const boxY = Math.floor((ch - boxH) / 2);
-
-          ctx.fillStyle = 'rgba(15, 23, 42, 0.42)';
-          ctx.fillRect(0, 0, cw, boxY);
-          ctx.fillRect(0, boxY + boxH, cw, ch - (boxY + boxH));
-          ctx.fillRect(0, boxY, boxX, boxH);
-          ctx.fillRect(boxX + boxW, boxY, cw - (boxX + boxW), boxH);
-
-          ctx.strokeStyle = '#38bdf8';
-          ctx.lineWidth = 2.5;
-          ctx.setLineDash([8, 5]);
-          ctx.strokeRect(boxX, boxY, boxW, boxH);
-          ctx.setLineDash([]);
-        }
-        renderLoopId = requestAnimationFrame(drawFrame);
-      }
-
-      drawFrame();
-    }
-
-    async function startCameraAndBarcode() {
-      const video = document.getElementById('cameraVideo');
-      setStatus('Requesting rear camera...');
-
+    for (const constraints of attempts) {
       try {
-        if (renderLoopId) cancelAnimationFrame(renderLoopId);
-        if (codeReader) codeReader.reset();
-        if (activeStream) {
-          activeStream.getTracks().forEach(track => track.stop());
-          activeStream = null;
-        }
-
-        const stream = await navigator.mediaDevices.getUserMedia({
-          audio: false,
-          video: {
-            facingMode: { ideal: 'environment' },
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-          }
-        });
-
-        activeStream = stream;
-        video.srcObject = stream;
-
-        await new Promise((resolve) => {
-          video.onloadedmetadata = () => {
-            video.play().then(resolve).catch(resolve);
-          };
-        });
-
-        startPreviewRenderLoop();
-        setStatus('Camera active — Auto-scanning barcode or tap Read Label Text');
-
-        if (window.ZXing) {
-          codeReader = new ZXing.BrowserMultiFormatReader();
-          codeReader.decodeFromStream(stream, video, (result, err) => {
-            if (result && result.text) {
-              const code = result.text.trim();
-              document.getElementById('serialResultInput').value = code;
-              setStatus(`Barcode Scanned: ${code}`);
-              if (navigator.vibrate) navigator.vibrate(120);
-            }
-          });
-        }
+        activeStream = await navigator.mediaDevices.getUserMedia(constraints);
+        video.srcObject = activeStream;
+        video.setAttribute('playsinline', true);
+        await video.play();
+        setStatus('Camera live — Align label inside green border & tap Snap');
+        return;
       } catch (err) {
-        console.error('Camera start error:', err);
-        setStatus(`Camera error: ${err.name || 'Permission blocked'}. Tap Restart Camera.`);
+        console.warn('Camera attempt failed:', err.name);
       }
     }
 
-    function restartCamera() {
-      startCameraAndBarcode();
+    setStatus('Camera permission denied or busy. Use Native Camera button below.', true);
+  }
+
+  function stopStream() {
+    if (activeStream) {
+      activeStream.getTracks().forEach(track => track.stop());
+      activeStream = null;
+    }
+  }
+
+  // 2. Snap Photo from Live Viewfinder & Extract
+  snapBtn.addEventListener('click', async () => {
+    if (isFrozen) {
+      // Resume live camera if already snapped
+      await startLiveCamera();
+      return;
     }
 
-    async function captureAndReadText() {
-      const video = document.getElementById('cameraVideo');
-      const canvas = document.getElementById('captureCanvas');
-
-      if (!video.videoWidth || !video.videoHeight) {
-        setStatus('Camera view not ready yet. Tap Restart Camera.');
-        return;
-      }
-
-      setStatus('Reading battery label text (OCR)... Please hold steady');
-
-      const vw = video.videoWidth;
-      const vh = video.videoHeight;
-      const cropW = Math.floor(vw * 0.85);
-      const cropH = Math.floor(vh * 0.48);
-      const cropX = Math.floor((vw - cropW) / 2);
-      const cropY = Math.floor((vh - cropH) / 2);
-
-      canvas.width = cropW;
-      canvas.height = cropH;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
-
-      try {
-        const { data: { text } } = await Tesseract.recognize(canvas, 'eng');
-        const tokens = text
-          .split(/[\s\n]+/)
-          .map(t => t.replace(/[^A-Za-z0-9\-]/g, '').trim())
-          .filter(t => t.length >= 6);
-
-        const partOrSerial =
-          tokens.find(t => /^[A-Z]{2,}[0-9]{3,}[A-Z0-9]*$/i.test(t)) ||
-          tokens.find(t => /^[0-9]{8,16}$/.test(t)) ||
-          tokens[0];
-
-        if (partOrSerial) {
-          document.getElementById('serialResultInput').value = partOrSerial.toUpperCase();
-          setStatus(`Label Read: ${partOrSerial.toUpperCase()}`);
-          if (navigator.vibrate) navigator.vibrate([80, 50, 80]);
-        } else {
-          setStatus('No clear battery serial found. Move closer & tap Read Label Text again.');
-        }
-      } catch (e) {
-        setStatus('Text scan failed. Retry or type serial manually.');
-      }
+    if (!video.videoWidth || !video.videoHeight) {
+      setStatus('Camera not ready yet. Tap Restart Camera or use Native Camera.', true);
+      return;
     }
 
-    function saveScannedRecord() {
-      const serial = document.getElementById('serialResultInput').value.trim();
-      const remarks = document.getElementById('remarksInput').value.trim();
+    snapBtn.disabled = true;
+    setStatus('Snapped! Reading barcode & label text...');
 
-      if (!serial) {
-        setStatus('Please scan or enter a battery serial number first.');
-        return;
-      }
+    // Draw full frame onto canvas and freeze view
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      const sessionRaw = sessionStorage.getItem('userSession');
-      const user = sessionRaw ? JSON.parse(sessionRaw) : {};
-      const scannedBy = user.NAME || user.Title || user.name || 'Portal User';
+    video.style.display = 'none';
+    guideFrame.style.display = 'none';
+    canvas.style.display = 'block';
+    isFrozen = true;
 
-      const record = {
-        serial,
-        remarks: remarks || '-',
-        scannedBy,
-        timestamp: new Date().toLocaleString('en-MY', { hour12: false })
+    const fullImageUrl = canvas.toDataURL('image/png');
+    await processCapturedImage(fullImageUrl);
+
+    snapBtn.textContent = '📷 Resume Live Camera';
+    snapBtn.disabled = false;
+  });
+
+  // 3. Restart Camera Button
+  restartBtn.addEventListener('click', () => {
+    serialInput.value = '';
+    startLiveCamera();
+  });
+
+  // 4. Native Camera / File Upload Fallback
+  nativeCamInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setStatus('Processing captured photo...');
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = async () => {
+        canvas.width = img.width;
+        canvas.height = img.height;
+        canvas.getContext('2d').drawImage(img, 0, 0);
+        video.style.display = 'none';
+        guideFrame.style.display = 'none';
+        canvas.style.display = 'block';
+        isFrozen = true;
+        snapBtn.textContent = '📷 Resume Live Camera';
+
+        await processCapturedImage(ev.target.result);
       };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
 
-      const existing = JSON.parse(localStorage.getItem('spts_battery_scans') || '[]');
-      existing.unshift(record);
-      localStorage.setItem('spts_battery_scans', JSON.stringify(existing.slice(0, 30)));
+  // 5. Extract Serial & Model Number (Barcode + OCR)
+  async function processCapturedImage(imageDataUrl) {
+    let modelFound = '';
+    let serialFound = '';
 
-      document.getElementById('serialResultInput').value = '';
-      document.getElementById('remarksInput').value = '';
-      setStatus(`Saved Battery: ${serial}`);
-      renderHistory();
-    }
-
-    function copyText(val) {
-      navigator.clipboard.writeText(val);
-      setStatus(`Copied ${val} to clipboard`);
-    }
-
-    function renderHistory() {
-      const list = document.getElementById('scanHistoryList');
-      const logs = JSON.parse(localStorage.getItem('spts_battery_scans') || '[]');
-      if (logs.length === 0) {
-        list.innerHTML = `<div style="font-size:12px; color:#94a3b8; text-align:center; padding:10px;">No battery scans recorded yet.</div>`;
-        return;
+    // Try Barcode first
+    try {
+      const reader = new ZXing.BrowserMultiFormatReader();
+      const img = new Image();
+      img.src = imageDataUrl;
+      await img.decode();
+      const res = await reader.decodeFromImageElement(img);
+      if (res && res.text) {
+        const parsed = extractMotorolaFields(res.text);
+        if (parsed.model) modelFound = parsed.model;
+        if (parsed.serial) serialFound = parsed.serial;
       }
-
-      list.innerHTML = logs.map(item => `
-        <div class="history-item">
-          <div>
-            <div class="history-sn">${item.serial}</div>
-            <div class="history-meta">${item.remarks} • ${item.timestamp}</div>
-          </div>
-          <button class="btn-copy" onclick="copyText('${item.serial}')">Copy</button>
-        </div>
-      `).join('');
+    } catch (e) {
+      // Proceed to OCR
     }
 
-    window.addEventListener('DOMContentLoaded', () => {
-      renderHistory();
-      startCameraAndBarcode();
-    });
+    // Run OCR for full label lines
+    try {
+      const { data: { text } } = await Tesseract.recognize(imageDataUrl, 'eng');
+      const parsed = extractMotorolaFields(text);
+      if (!modelFound && parsed.model) modelFound = parsed.model;
+      if (!serialFound && parsed.serial) serialFound = parsed.serial;
+    } catch (err) {
+      setStatus('OCR error: ' + err.message, true);
+      return;
+    }
 
-    window.addEventListener('beforeunload', () => {
-      if (renderLoopId) cancelAnimationFrame(renderLoopId);
-      if (codeReader) codeReader.reset();
-      if (activeStream) activeStream.getTracks().forEach(t => t.stop());
+    if (modelFound && serialFound) {
+      serialInput.value = `${modelFound} | SN:${serialFound}`;
+      setStatus(`Detected Model (${modelFound}) & Serial (${serialFound})`);
+    } else if (modelFound || serialFound) {
+      serialInput.value = modelFound || serialFound;
+      setStatus(`Detected: ${serialInput.value}`);
+    } else {
+      setStatus('Label captured, but text was blurry. Resume camera & snap closer.', true);
+    }
+  }
+
+  function extractMotorolaFields(rawText) {
+    const clean = rawText.toUpperCase();
+    const modelMatch = clean.match(/\b(NNTN|PMNN)[A-Z0-9]{4,8}\b/);
+    const serialMatch = clean.match(/SN[:\s]*([A-Z0-9]{8,16})/);
+    return {
+      model: modelMatch ? modelMatch[0] : null,
+      serial: serialMatch ? serialMatch[1] : null
+    };
+  }
+
+  // 6. Save Record & Render History
+  saveBtn.addEventListener('click', () => {
+    const val = serialInput.value.trim();
+    const remarks = remarksInput.value.trim();
+    if (!val) {
+      setStatus('Please snap a battery label or enter Serial/Model No. first.', true);
+      return;
+    }
+
+    const records = JSON.parse(localStorage.getItem('spts_battery_scans') || '[]');
+    records.unshift({
+      code: val,
+      remarks: remarks || 'Good',
+      user: sessionStorage.getItem('spts_user') || 'Operator',
+      time: new Date().toLocaleString('en-MY', { hour12: false })
     });
-  </script>
+    localStorage.setItem('spts_battery_scans', JSON.stringify(records.slice(0, 25)));
+
+    serialInput.value = '';
+    remarksInput.value = '';
+    renderHistory();
+    setStatus('Battery record saved!');
+    startLiveCamera();
+  });
+
+  function renderHistory() {
+    const records = JSON.parse(localStorage.getItem('spts_battery_scans') || '[]');
+    if (!records.length) {
+      historyContainer.innerHTML = '<div class="empty-msg">No battery scans recorded yet.</div>';
+      return;
+    }
+    historyContainer.innerHTML = records.map(r => `
+      <div class="history-item">
+        <div>
+          <strong>${r.code}</strong><br>
+          <span style="color:#64748b; font-size:0.8rem;">${r.remarks}</span>
+        </div>
+        <div style="text-align:right; color:#64748b; font-size:0.78rem;">
+          ${r.time}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  renderHistory();
+  startLiveCamera();
+</script>
 </body>
 </html>
