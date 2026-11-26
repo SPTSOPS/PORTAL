@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Battery Barcode & Serial Scanner Module</title>
+  <!-- ZXing for multi-barcode decoding & Tesseract for OCR fallback -->
+  <script src="https://unpkg.com/@zxing/library@0.20.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 500px; margin: 20px auto; padding: 0 15px; }
+    .camera-box { position: relative; width: 100%; border-radius: 8px; overflow: hidden; background: #000; }
+    video, canvas { width: 100%; display: block; }
+    .guide-overlay {
+      position: absolute; top: 30%; left: 10%; width: 80%; height: 40%;
+      border: 2px dashed #00ff88; box-sizing: border-box; pointer-events: none;
+    }
+    button {
+      width: 100%; padding: 12px; margin-top: 12px; font-size: 16px;
+      background: #0066cc; color: white; border: none; border-radius: 6px; cursor: pointer;
+    }
+    button:disabled { background: #999; }
+    .results { margin-top: 20px; padding: 15px; background: #f4f6f8; border-radius: 8px; }
+    .field { margin-bottom: 10px; }
+    label { font-weight: bold; display: block; font-size: 13px; color: #555; }
+    input { width: 100%; padding: 8px; font-size: 16px; margin-top: 4px; box-sizing: border-box; }
+    #status { font-size: 14px; color: #0066cc; margin-top: 10px; }
+  </style>
+</head>
+<body>
+
+  <h2>Battery Label Scanner</h2>
+  <p>Align the barcodes inside the green box and snap a photo.</p>
+
+  <div class="camera-box">
+    <video id="video" autoplay playsinline></video>
+    <canvas id="canvas" style="display:none;"></canvas>
+    <div class="guide-overlay"></div>
+  </div>
+
+  <button id="captureBtn">Take Picture & Extract</button>
+  <button id="retakeBtn" style="display:none; background:#555;">Retake Photo</button>
+  <div id="status">Initializing camera...</div>
+
+  <div class="results">
+    <div class="field">
+      <label>Part / Model Number (e.g., NNTN8570B)</label>
+      <input type="text" id="modelNumber" placeholder="Waiting for scan..." />
+    </div>
+    <div class="field">
+      <label>Serial Number (e.g., 500002151395)</label>
+      <input type="text" id="serialNumber" placeholder="Waiting for scan..." />
+    </div>
+  </div>
+
+  <script src="js/scanner.js"></script>
+</body>
+</html>
