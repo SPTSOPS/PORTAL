@@ -164,6 +164,7 @@
       font-size: 13px;
       font-weight: 600;
       color: #1e293b;
+      word-break: break-word;
     }
     .status-pill.success { background: #dcfce7; color: #166534; }
     .status-pill.error { background: #fee2e2; color: #b91c1c; }
@@ -266,7 +267,7 @@
   <div class="card">
     <div class="field">
       <label for="serialInput">Battery Serial No</label>
-      <input type="text" id="serialInput" placeholder="e.g. SN:500002151395" />
+      <input type="text" id="serialInput" placeholder="e.g. SN:500004004A05" />
     </div>
     <button class="btn btn-copy" id="copyBtn" type="button">📋 Copy Serial Number</button>
   </div>
@@ -302,14 +303,44 @@
     statusPill.className = 'status-pill ' + type;
   }
 
-  // Format output consistently as SN:XXXXXXXXXXXX
-  function formatSerialOutput(rawSerial) {
-    if (!rawSerial) return '';
-    const cleaned = rawSerial.trim().toUpperCase().replace(/^SN[:\s]*/i, '');
-    return cleaned ? `SN:${cleaned}` : '';
+  // Extract ONLY the first serial number and format uniformly as "SN:XXXXXXXXXXXX"
+  function extractFirstSerial(rawText) {
+    if (!rawText) return '';
+    const clean = rawText.trim().toUpperCase();
+    let serialCode = '';
+
+    // 1. Match "STICKER SERIAL : 500001CC96831" before "BODY SERIAL"
+    const stickerMatch = clean.match(/STICKER\s*SERIAL\s*[:\-]?\s*([A-Z0-9]{8,16})/);
+    if (stickerMatch && stickerMatch[1]) {
+      serialCode = stickerMatch[1].replace(/BODY.*$/, '');
+    }
+
+    // 2. Match "SN:500004004A05" or "SN 500004004A05"
+    if (!serialCode) {
+      const snMatch = clean.match(/\bSN\s*[:\-]?\s*([A-Z0-9]{8,16})/);
+      if (snMatch && snMatch[1]) {
+        serialCode = snMatch[1];
+      }
+    }
+
+    // 3. Fallback: grab the first Motorola serial starting with 5000 (12-13 chars)
+    if (!serialCode) {
+      const first5000 = clean.match(/5000[A-Z0-9]{8,10}/);
+      if (first5000) {
+        serialCode = first5000[0];
+      }
+    }
+
+    // 4. Generic single token fallback
+    if (!serialCode) {
+      const genericToken = clean.match(/[A-Z0-9]{8,16}/);
+      serialCode = genericToken ? genericToken[0] : clean.replace(/^SN[:\s]*/i, '');
+    }
+
+    return serialCode ? `SN:${serialCode}` : '';
   }
 
-  // 1. Populate Available Rear Lenses (Main, Wide, Macro)
+  // 1. Populate Available Rear Lenses
   async function loadCameraDevices() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
     const devices = await navigator.mediaDevices.enumerateDevices();
@@ -443,16 +474,17 @@
 
       if (qr && qr.data) {
         setGuideMode('qr');
-        const formatted = formatSerialOutput(qr.data);
-        serialInput.value = formatted;
-        setStatus(`QR Serial Captured: ${formatted}`, 'success');
+        const fullQrText = qr.data.trim();
+        const firstSerial = extractFirstSerial(fullQrText);
+        serialInput.value = firstSerial;
+        setStatus(`QR Captured: ${fullQrText}`, 'success');
       } else {
         setGuideMode('barcode');
       }
     }, 450);
   }
 
-  // 6. Snap & Read Serial Number Only
+  // 6. Snap & Read First Serial Number Only
   snapBtn.addEventListener('click', async () => {
     if (isFrozen) {
       await startLiveCamera(cameraSelect.value);
@@ -482,7 +514,7 @@
     startLiveCamera(cameraSelect.value);
   });
 
-  // 7. Decode Snapshot -> Extract SN:XXXXXXXXXXXX Only
+  // 7. Decode Snapshot -> First Serial Number with "SN:" in Input, Full Details in Green Banner
   async function extractSerialOnly(dataUrl) {
     const img = new Image();
     img.src = dataUrl;
@@ -497,51 +529,43 @@
     const idata = tCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
     const qr = window.jsQR ? jsQR(idata.data, idata.width, idata.height) : null;
     if (qr && qr.data) {
-      const formatted = formatSerialOutput(qr.data);
-      serialInput.value = formatted;
-      setStatus(`QR Serial Extracted: ${formatted}`, 'success');
+      const fullQrText = qr.data.trim();
+      const firstSerial = extractFirstSerial(fullQrText);
+      serialInput.value = firstSerial;
+      setStatus(`QR Captured: ${fullQrText}`, 'success');
       return;
     }
 
     // Try 1D Barcode via ZXing
-    let serialFound = '';
+    let rawDetected = '';
+    let firstSerial = '';
     try {
       const reader = new ZXing.BrowserMultiFormatReader();
       const res = await reader.decodeFromImageElement(img);
       if (res && res.text) {
-        serialFound = parseSerialFromText(res.text);
+        rawDetected = res.text.trim();
+        firstSerial = extractFirstSerial(rawDetected);
       }
     } catch (e) {}
 
-    // Fallback to Tesseract OCR for printed SN: line
-    if (!serialFound) {
+    // Fallback to Tesseract OCR for printed SN line
+    if (!firstSerial) {
       try {
         const { data: { text } } = await Tesseract.recognize(dataUrl, 'eng');
-        serialFound = parseSerialFromText(text);
+        rawDetected = text.trim();
+        firstSerial = extractFirstSerial(rawDetected);
       } catch (err) {
         setStatus('OCR error: ' + err.message, 'error');
         return;
       }
     }
 
-    if (serialFound) {
-      serialInput.value = serialFound;
-      setStatus(`Serial Detected: ${serialFound}`, 'success');
+    if (firstSerial) {
+      serialInput.value = firstSerial;
+      setStatus(`Serial Detected: ${firstSerial}`, 'success');
     } else {
       setStatus('Serial not detected — align SN barcode or QR code and retry.', 'error');
     }
-  }
-
-  function parseSerialFromText(raw) {
-    const clean = raw.toUpperCase();
-    // Matches SN:500002151395 or SN 500002151395
-    const snMatch = clean.match(/SN[:\s]*([A-Z0-9]{8,16})/);
-    if (snMatch && snMatch[1]) {
-      return `SN:${snMatch[1]}`;
-    }
-    // Fallback if barcode directly encodes the 12-character serial (e.g., 500002151395)
-    const rawSerialMatch = clean.match(/\b5000[A-Z0-9]{6,12}\b/);
-    return rawSerialMatch ? `SN:${rawSerialMatch[0]}` : '';
   }
 
   // 8. Copy Serial Number to Clipboard
