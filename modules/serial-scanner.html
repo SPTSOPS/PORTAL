@@ -4,24 +4,33 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Battery Scanner | SPTS Operation Portal</title>
-  <!-- ZXing for 1D barcodes, jsQR for fast live QR detection, Tesseract for OCR fallback -->
   <script src="https://unpkg.com/@zxing/library@0.20.0"></script>
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <style>
     :root {
-      --header-bg: #0b4a5a;
-      --primary: #0b4a5a;
-      --blue-btn: #1677c5;
-      --green-btn: #219653;
-      --bg: #f1f5f9;
+      --header-bg: #08506b;
+      --primary: #08506b;
+      --blue-btn: #0078D4;
+      --green-btn: #16a34a;
+      --bg: #f4f6f9;
       --card: #ffffff;
       --text: #1e293b;
-      --muted: #64748b;
       --border: #cbd5e1;
     }
-    * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
-    body { margin: 0; background: var(--bg); color: var(--text); }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-text-size-adjust: none;
+      -moz-text-size-adjust: none;
+      text-size-adjust: none;
+    }
+    body {
+      background: var(--bg);
+      color: var(--text);
+    }
 
     .top-bar {
       background: var(--header-bg);
@@ -35,26 +44,33 @@
       z-index: 10;
     }
     .back-btn {
-      background: rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.14);
       color: #fff;
       border: 1px solid rgba(255, 255, 255, 0.35);
       border-radius: 8px;
       padding: 6px 12px;
-      font-size: 0.88rem;
-      font-weight: 600;
+      font-size: 13px;
+      font-weight: 700;
       cursor: pointer;
     }
-    .top-bar h1 { margin: 0; font-size: 1.15rem; font-weight: 700; }
+    .top-bar h1 {
+      font-size: 17px;
+      font-weight: 800;
+    }
 
-    .main-wrap { max-width: 520px; margin: 0 auto; padding: 12px; }
+    .main-wrap {
+      max-width: 412px;
+      margin: 0 auto;
+      padding: 12px 14px;
+    }
 
-    /* Compact Camera Viewfinder (210px height) */
+    /* Compact Camera Viewfinder */
     .camera-box {
       position: relative;
       width: 100%;
       height: 210px;
       background: #0f172a;
-      border: 3px solid var(--header-bg);
+      border: 2.5px solid var(--header-bg);
       border-radius: 12px;
       overflow: hidden;
       display: flex;
@@ -68,7 +84,7 @@
       display: block;
     }
 
-    /* Dynamic Guide Frame: Default Wide Rectangle for 1D Barcodes */
+    /* Dynamic Guide Frame: Wide Rectangle (Barcode) <-> Square (QR) */
     .guide-frame {
       position: absolute;
       top: 50%;
@@ -82,7 +98,6 @@
       pointer-events: none;
       transition: width 0.25s ease, height 0.25s ease, border-color 0.25s ease;
     }
-    /* Morphs into a Square when QR Code is detected */
     .guide-frame.qr-mode {
       width: 145px;
       height: 145px;
@@ -94,17 +109,17 @@
       top: -22px;
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(0, 0, 0, 0.78);
+      background: rgba(0, 0, 0, 0.8);
       color: #4ade80;
-      font-size: 0.68rem;
-      font-weight: 700;
+      font-size: 10px;
+      font-weight: 800;
       padding: 2px 8px;
       border-radius: 999px;
       white-space: nowrap;
       letter-spacing: 0.3px;
     }
 
-    /* Lens & Zoom Control Bar */
+    /* Lens Switcher & Hardware Zoom */
     .cam-controls {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -119,7 +134,7 @@
     .cam-controls select {
       width: 100%;
       padding: 6px 8px;
-      font-size: 0.8rem;
+      font-size: 12px;
       font-weight: 600;
       border: 1px solid var(--border);
       border-radius: 6px;
@@ -130,11 +145,14 @@
       display: flex;
       align-items: center;
       gap: 6px;
-      font-size: 0.78rem;
+      font-size: 12px;
       font-weight: 700;
       color: var(--primary);
     }
-    .zoom-wrap input[type="range"] { width: 100%; accent-color: var(--primary); }
+    .zoom-wrap input[type="range"] {
+      width: 100%;
+      accent-color: var(--primary);
+    }
 
     /* Status Pill */
     .status-pill {
@@ -143,7 +161,7 @@
       background: #e2e8f0;
       border-radius: 8px;
       text-align: center;
-      font-size: 0.84rem;
+      font-size: 13px;
       font-weight: 600;
       color: #1e293b;
     }
@@ -161,7 +179,7 @@
       padding: 11px 8px;
       border: none;
       border-radius: 9px;
-      font-size: 0.9rem;
+      font-size: 14px;
       font-weight: 700;
       color: #fff;
       cursor: pointer;
@@ -173,54 +191,39 @@
     .btn:disabled { opacity: 0.55; cursor: not-allowed; }
     .btn-teal { background: var(--primary); }
     .btn-blue { background: var(--blue-btn); }
-    .btn-green { background: var(--green-btn); width: 100%; font-size: 0.95rem; padding: 12px; }
-    .btn-full { grid-column: span 2; }
+    .btn-copy {
+      background: var(--green-btn);
+      width: 100%;
+      padding: 12px;
+      font-size: 15px;
+      margin-top: 10px;
+    }
 
-    /* Form Card */
+    /* Serial Output Card */
     .card {
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: 12px;
-      padding: 12px 14px;
+      padding: 14px;
       margin-top: 10px;
     }
-    .field { margin-bottom: 10px; }
     .field label {
       display: block;
-      font-size: 0.75rem;
+      font-size: 12px;
       font-weight: 800;
       color: #1e293b;
       text-transform: uppercase;
-      margin-bottom: 4px;
+      margin-bottom: 6px;
     }
     .field input {
       width: 100%;
-      padding: 10px;
-      font-size: 0.95rem;
-      font-weight: 600;
+      padding: 11px 12px;
+      font-size: 16px;
+      font-weight: 700;
       border: 1.5px solid #94a3b8;
       border-radius: 8px;
       color: #0f172a;
-    }
-
-    .history-title {
-      margin: 14px 0 8px 0;
-      font-size: 0.85rem;
-      font-weight: 800;
-      color: var(--primary);
-      text-transform: uppercase;
-    }
-    .empty-msg { text-align: center; color: var(--muted); font-size: 0.85rem; padding: 8px 0; }
-    .history-item {
-      background: #fff;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 8px 10px;
-      margin-bottom: 6px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 0.84rem;
+      background: #f8fafc;
     }
   </style>
 </head>
@@ -237,17 +240,17 @@
     <video id="video" autoplay playsinline muted></video>
     <canvas id="canvas" style="display:none;"></canvas>
     <div class="guide-frame" id="guideFrame">
-      <div class="guide-badge" id="guideBadge">BARCODE / SERIAL MODE</div>
+      <div class="guide-badge" id="guideBadge">SERIAL BARCODE MODE</div>
     </div>
   </div>
 
-  <!-- Lens Switcher (for Macro Lens) & Hardware Zoom -->
+  <!-- Lens Switcher & Hardware Zoom -->
   <div class="cam-controls">
     <select id="cameraSelect" title="Switch Rear / Macro Lens">
       <option value="">Default Rear Camera</option>
     </select>
     <div class="zoom-wrap">
-      <span id="zoomLabel">1.0x</span>
+      <span id="zoomLabel">1.5x</span>
       <input type="range" id="zoomSlider" min="1" max="4" step="0.1" value="1.5" />
     </div>
   </div>
@@ -257,27 +260,15 @@
   <div class="action-row">
     <button class="btn btn-teal" id="restartBtn" type="button">🔄 Reset View</button>
     <button class="btn btn-blue" id="snapBtn" type="button">📸 Snap & Read</button>
-    <label for="nativeCamInput" class="btn btn-teal btn-full" style="background:#334155; font-size:0.8rem; padding:8px;">
-      📁 Use Native Phone Camera / Macro Photo
-    </label>
-    <input type="file" id="nativeCamInput" accept="image/*" capture="environment" style="display:none;" />
   </div>
 
+  <!-- Serial Number Output & Copy Card -->
   <div class="card">
     <div class="field">
-      <label>Battery Serial / Model No.</label>
-      <input type="text" id="serialInput" placeholder="e.g. NNTN8570B or 500002151395" />
+      <label for="serialInput">Battery Serial No</label>
+      <input type="text" id="serialInput" placeholder="e.g. SN:500002151395" />
     </div>
-    <div class="field">
-      <label>Remarks / Condition (Optional)</label>
-      <input type="text" id="remarksInput" placeholder="e.g. Good / Spare / WBT06..." />
-    </div>
-    <button class="btn btn-green" id="saveBtn" type="button">Save Battery Record</button>
-  </div>
-
-  <div class="history-title">Recent Battery Scans</div>
-  <div id="historyContainer">
-    <div class="empty-msg">No battery scans recorded yet.</div>
+    <button class="btn btn-copy" id="copyBtn" type="button">📋 Copy Serial Number</button>
   </div>
 </div>
 
@@ -292,11 +283,8 @@
   const statusPill = document.getElementById('statusPill');
   const restartBtn = document.getElementById('restartBtn');
   const snapBtn = document.getElementById('snapBtn');
-  const nativeCamInput = document.getElementById('nativeCamInput');
   const serialInput = document.getElementById('serialInput');
-  const remarksInput = document.getElementById('remarksInput');
-  const saveBtn = document.getElementById('saveBtn');
-  const historyContainer = document.getElementById('historyContainer');
+  const copyBtn = document.getElementById('copyBtn');
 
   let activeStream = null;
   let videoTrack = null;
@@ -306,16 +294,19 @@
   const offscreenCtx = offscreenCanvas.getContext('2d', { willReadFrequently: true });
 
   function goBack() {
-    if (window.parent && window.parent !== window) {
-      window.parent.postMessage({ action: 'closeModule' }, '*');
-    } else {
-      window.location.href = '../index.html';
-    }
+    window.location.href = '../index.html';
   }
 
   function setStatus(text, type = '') {
     statusPill.textContent = text;
     statusPill.className = 'status-pill ' + type;
+  }
+
+  // Format output consistently as SN:XXXXXXXXXXXX
+  function formatSerialOutput(rawSerial) {
+    if (!rawSerial) return '';
+    const cleaned = rawSerial.trim().toUpperCase().replace(/^SN[:\s]*/i, '');
+    return cleaned ? `SN:${cleaned}` : '';
   }
 
   // 1. Populate Available Rear Lenses (Main, Wide, Macro)
@@ -330,12 +321,10 @@
     videoInputs.forEach((dev, idx) => {
       const opt = document.createElement('option');
       opt.value = dev.deviceId;
-      // Label back lenses clearly so operator can test which physical lens is Macro
       opt.textContent = dev.label || `Camera Lens ${idx + 1}`;
       cameraSelect.appendChild(opt);
     });
 
-    // Prefer last back camera if none selected yet (Android often exposes Macro/Aux lenses last)
     if (currentId) {
       cameraSelect.value = currentId;
     } else {
@@ -360,11 +349,10 @@
         return;
       }
     }
-    // Smooth visual zoom fallback if hardware zoom isn't exposed on that lens
     video.style.transform = `scale(${z})`;
   });
 
-  // 3. Start Live Camera with Macro/Close-Focus Hints
+  // 3. Start Live Camera
   async function startLiveCamera(selectedDeviceId = '') {
     stopStream();
     isFrozen = false;
@@ -376,7 +364,7 @@
     snapBtn.disabled = false;
 
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      setStatus('Live camera blocked (requires HTTPS). Use Native Camera below.', 'error');
+      setStatus('Live camera blocked (requires HTTPS).', 'error');
       return;
     }
 
@@ -395,7 +383,6 @@
         cameraSelect.value = videoTrack.getSettings().deviceId;
       }
 
-      // Apply close-range focus & initial 1.5x zoom if supported by lens
       const caps = videoTrack.getCapabilities ? videoTrack.getCapabilities() : {};
       const adv = [];
       if (caps.focusMode && caps.focusMode.includes('continuous')) {
@@ -413,10 +400,10 @@
       }
       if (adv.length) await videoTrack.applyConstraints({ advanced: adv });
 
-      setStatus('Live — Align barcode inside green box or aim at QR code');
+      setStatus('Live — Align SN barcode inside box or aim at QR code');
       startLiveQrWatcher();
     } catch (err) {
-      setStatus('Camera error (' + err.name + '). Try switching lens or Native Camera.', 'error');
+      setStatus('Camera error (' + err.name + '). Try switching lens.', 'error');
     }
   }
 
@@ -436,17 +423,16 @@
       guideBadge.textContent = 'QR CODE DETECTED';
     } else {
       guideFrame.classList.remove('qr-mode');
-      guideBadge.textContent = 'BARCODE / SERIAL MODE';
+      guideBadge.textContent = 'SERIAL BARCODE MODE';
     }
   }
 
-  // 5. Continuous Lightweight QR Watcher (Auto-morphs border to Square & reads QR)
+  // 5. Continuous Lightweight QR Watcher
   function startLiveQrWatcher() {
     if (qrLoopTimer) clearInterval(qrLoopTimer);
     qrLoopTimer = setInterval(() => {
       if (isFrozen || !video.videoWidth || !window.jsQR) return;
 
-      // Downscale frame for fast 60ms QR scanning without lagging phone
       const scale = 0.5;
       offscreenCanvas.width = video.videoWidth * scale;
       offscreenCanvas.height = video.videoHeight * scale;
@@ -456,18 +442,17 @@
       const qr = jsQR(imgData.data, imgData.width, imgData.height, { inversionAttempts: 'dontInvert' });
 
       if (qr && qr.data) {
-        // Dynamically morph guide box to square and populate serial number!
         setGuideMode('qr');
-        const cleanedQr = qr.data.trim();
-        serialInput.value = cleanedQr;
-        setStatus(`QR Code Captured: ${cleanedQr}`, 'success');
+        const formatted = formatSerialOutput(qr.data);
+        serialInput.value = formatted;
+        setStatus(`QR Serial Captured: ${formatted}`, 'success');
       } else {
         setGuideMode('barcode');
       }
     }, 450);
   }
 
-  // 6. Manual Snap & Read (for 1D Barcodes & Printed Serial Numbers)
+  // 6. Snap & Read Serial Number Only
   snapBtn.addEventListener('click', async () => {
     if (isFrozen) {
       await startLiveCamera(cameraSelect.value);
@@ -476,7 +461,7 @@
     if (!video.videoWidth) return;
 
     snapBtn.disabled = true;
-    setStatus('Snapped! Decoding barcode & label text...');
+    setStatus('Snapped! Reading serial number...');
 
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
@@ -487,7 +472,7 @@
     canvas.style.display = 'block';
     isFrozen = true;
 
-    await extractFromSnapshot(canvas.toDataURL('image/png'));
+    await extractSerialOnly(canvas.toDataURL('image/png'));
     snapBtn.textContent = '📷 Resume Live Camera';
     snapBtn.disabled = false;
   });
@@ -497,35 +482,13 @@
     startLiveCamera(cameraSelect.value);
   });
 
-  nativeCamInput.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const img = new Image();
-      img.onload = async () => {
-        canvas.width = img.width;
-        canvas.height = img.height;
-        canvas.getContext('2d').drawImage(img, 0, 0);
-        video.style.display = 'none';
-        guideFrame.style.display = 'none';
-        canvas.style.display = 'block';
-        isFrozen = true;
-        snapBtn.textContent = '📷 Resume Live Camera';
-        await extractFromSnapshot(ev.target.result);
-      };
-      img.src = ev.target.result;
-    };
-    reader.readAsDataURL(file);
-  });
-
-  // 7. Decode Snapshot (QR -> 1D Barcode -> OCR)
-  async function extractFromSnapshot(dataUrl) {
+  // 7. Decode Snapshot -> Extract SN:XXXXXXXXXXXX Only
+  async function extractSerialOnly(dataUrl) {
     const img = new Image();
     img.src = dataUrl;
     await img.decode();
 
-    // Check QR first on high-res snapshot
+    // Check QR first
     const tempCanvas = document.createElement('canvas');
     tempCanvas.width = img.width;
     tempCanvas.height = img.height;
@@ -534,94 +497,76 @@
     const idata = tCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
     const qr = window.jsQR ? jsQR(idata.data, idata.width, idata.height) : null;
     if (qr && qr.data) {
-      serialInput.value = qr.data.trim();
-      setStatus(`QR Serial Extracted: ${serialInput.value}`, 'success');
+      const formatted = formatSerialOutput(qr.data);
+      serialInput.value = formatted;
+      setStatus(`QR Serial Extracted: ${formatted}`, 'success');
       return;
     }
 
     // Try 1D Barcode via ZXing
-    let modelFound = '';
     let serialFound = '';
     try {
       const reader = new ZXing.BrowserMultiFormatReader();
       const res = await reader.decodeFromImageElement(img);
       if (res && res.text) {
-        const parsed = parseMotorolaLabel(res.text);
-        if (parsed.model) modelFound = parsed.model;
-        if (parsed.serial) serialFound = parsed.serial;
+        serialFound = parseSerialFromText(res.text);
       }
     } catch (e) {}
 
-    // Fallback to Tesseract OCR for printed text
-    try {
-      const { data: { text } } = await Tesseract.recognize(dataUrl, 'eng');
-      const parsed = parseMotorolaLabel(text);
-      if (!modelFound && parsed.model) modelFound = parsed.model;
-      if (!serialFound && parsed.serial) serialFound = parsed.serial;
-    } catch (err) {
-      setStatus('OCR error: ' + err.message, 'error');
-      return;
+    // Fallback to Tesseract OCR for printed SN: line
+    if (!serialFound) {
+      try {
+        const { data: { text } } = await Tesseract.recognize(dataUrl, 'eng');
+        serialFound = parseSerialFromText(text);
+      } catch (err) {
+        setStatus('OCR error: ' + err.message, 'error');
+        return;
+      }
     }
 
-    if (modelFound && serialFound) {
-      serialInput.value = `${modelFound} | SN:${serialFound}`;
-      setStatus(`Detected: ${serialInput.value}`, 'success');
-    } else if (modelFound || serialFound) {
-      serialInput.value = modelFound || serialFound;
-      setStatus(`Detected: ${serialInput.value}`, 'success');
+    if (serialFound) {
+      serialInput.value = serialFound;
+      setStatus(`Serial Detected: ${serialFound}`, 'success');
     } else {
-      setStatus('Unreadable label — try aiming at the QR code or zoom closer.', 'error');
+      setStatus('Serial not detected — align SN barcode or QR code and retry.', 'error');
     }
   }
 
-  function parseMotorolaLabel(raw) {
+  function parseSerialFromText(raw) {
     const clean = raw.toUpperCase();
-    const modelMatch = clean.match(/\b(NNTN|PMNN)[A-Z0-9]{4,8}\b/);
-    const serialMatch = clean.match(/SN[:\s]*([A-Z0-9]{8,16})/);
-    return {
-      model: modelMatch ? modelMatch[0] : null,
-      serial: serialMatch ? serialMatch[1] : null
-    };
+    // Matches SN:500002151395 or SN 500002151395
+    const snMatch = clean.match(/SN[:\s]*([A-Z0-9]{8,16})/);
+    if (snMatch && snMatch[1]) {
+      return `SN:${snMatch[1]}`;
+    }
+    // Fallback if barcode directly encodes the 12-character serial (e.g., 500002151395)
+    const rawSerialMatch = clean.match(/\b5000[A-Z0-9]{6,12}\b/);
+    return rawSerialMatch ? `SN:${rawSerialMatch[0]}` : '';
   }
 
-  // 8. Save Record
-  saveBtn.addEventListener('click', () => {
+  // 8. Copy Serial Number to Clipboard
+  copyBtn.addEventListener('click', async () => {
     const val = serialInput.value.trim();
-    const remarks = remarksInput.value.trim();
     if (!val) {
-      setStatus('Scan or enter a Serial / Model number first.', 'error');
+      setStatus('No serial number to copy yet.', 'error');
       return;
     }
-    const records = JSON.parse(localStorage.getItem('spts_battery_scans') || '[]');
-    records.unshift({
-      code: val,
-      remarks: remarks || 'Good',
-      user: sessionStorage.getItem('spts_user') || 'Operator',
-      time: new Date().toLocaleString('en-MY', { hour12: false })
-    });
-    localStorage.setItem('spts_battery_scans', JSON.stringify(records.slice(0, 25)));
-    serialInput.value = '';
-    remarksInput.value = '';
-    renderHistory();
-    setStatus('Battery record saved!', 'success');
-    startLiveCamera(cameraSelect.value);
+
+    try {
+      await navigator.clipboard.writeText(val);
+    } catch (e) {
+      serialInput.select();
+      document.execCommand('copy');
+    }
+
+    const originalText = copyBtn.textContent;
+    copyBtn.textContent = '✅ Copied: ' + val;
+    setStatus(`Copied "${val}" to clipboard`, 'success');
+    setTimeout(() => {
+      copyBtn.textContent = originalText;
+    }, 2000);
   });
 
-  function renderHistory() {
-    const records = JSON.parse(localStorage.getItem('spts_battery_scans') || '[]');
-    if (!records.length) {
-      historyContainer.innerHTML = '<div class="empty-msg">No battery scans recorded yet.</div>';
-      return;
-    }
-    historyContainer.innerHTML = records.map(r => `
-      <div class="history-item">
-        <div><strong>${r.code}</strong><br><span style="color:#64748b; font-size:0.78rem;">${r.remarks}</span></div>
-        <div style="text-align:right; color:#64748b; font-size:0.75rem;">${r.time}</div>
-      </div>
-    `).join('');
-  }
-
-  renderHistory();
   startLiveCamera();
 </script>
 </body>
